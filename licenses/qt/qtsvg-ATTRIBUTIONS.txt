@@ -1,0 +1,127 @@
+Qt SDK module: qtsvg 6.11.2
+Upstream revision: 17ca512f903f935282ebeca496aac5d11ba4199a
+This inventory retains all SDK module entries, including some tools and platforms not shipped with 8bitPad.
+
+==============================================================================
+qtsvg
+versionInfo: 17ca512+HEAD
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: git://code.qt.io/qt/qtsvg.git@17ca512f903f935282ebeca496aac5d11ba4199a
+comment: Built by CMake 3.30.5 with RelWithDebInfo;Debug configuration for Windows (AMD64)
+qtsvg was configured with:
+    qt-configure-module <sources>/qtsvg -- -DFFMPEG_DIR=C:\FFmpeg-n7.1.5\build\msvc\installed -DQT_DEPLOY_FFMPEG=TRUE -DFEATURE_clangcpp=OFF -DINPUT_headersclean=ON -DCMAKE_MAKE_PROGRAM=C:\Utils\Ninja\ninja.exe -DQT_INSTALL_CONFIG_INFO_FILES=ON -DQT_GENERATE_SBOM=ON -DQT_GENERATE_SOURCE_SBOM=ON -DQT_SBOM_VERIFY_SPDX_V2=ON -DQT_SBOM_REQUIRE_GENERATE_SPDX_V2_JSON=ON -DQT_SBOM_REQUIRE_VERIFY_SPDX_V2=ON -DQT_SBOM_VERIFY_CYDX_V1_6=ON -DQT_SBOM_REQUIRE_GENERATE_CYDX_V1_6=ON -DQT_SBOM_REQUIRE_VERIFY_CYDX_V1_6=ON -DQT_SBOM_PYTHON_INTERP=C:\Python310_64\python.exe -DQT_SBOM_PYTHON_APPS_PATH=C:\Python310_64\Scripts -DQT_LINT_SOURCE_SBOM=ON -DQT_INTERNAL_SBOM_DEFAULT_CHECKS=ON -DQT_INTERNAL_SBOM_AUDIT=ON -DQT_INTERNAL_SBOM_AUDIT_NO_ERROR=ON -DQT_BUILD_TESTS=OFF -DCMAKE_AUTOGEN_VERBOSE=ON -DCMAKE_MESSAGE_LOG_LEVEL=STATUS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_WITH_PCH=OFF
+
+
+==============================================================================
+Svg_Attribution_xsvg
+versionInfo: unknown
+copyrightText: Copyright 2002 USC/Information Sciences Institute
+licenseDeclared: NOASSERTION
+licenseConcluded: HPND-sell-variant
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Svg_Attribution_xsvg
+    Information extracted from:
+     /src_dir/qtsvg/src/svg/qt_attribution.json
+    Entry index: 0
+    Id: xsvg
+    Name: XSVG
+    Description: Some code for arc handling is derived from code from the XSVG project.
+    Qt usage: Used in the Qt SVG library.
+    License: Historical Permission Notice and Disclaimer - sell variant
+    License file: LICENSE.XSVG.txt
+
+
+==============================================================================
+Svg
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qtsvg.git@17ca512f903f935282ebeca496aac5d11ba4199a
+comment: 
+CMake target name: Svg
+CMake exported target name: Qt6::Svg
+Contained in CMake package: Qt6Svg
+
+
+==============================================================================
+QSvgIconPlugin
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qtsvg.git@17ca512f903f935282ebeca496aac5d11ba4199a
+comment: 
+CMake target name: QSvgIconPlugin
+
+
+==============================================================================
+QSvgPlugin
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qtsvg.git@17ca512f903f935282ebeca496aac5d11ba4199a
+comment: 
+CMake target name: QSvgPlugin
+
+
+==============================================================================
+SvgWidgets
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qtsvg.git@17ca512f903f935282ebeca496aac5d11ba4199a
+comment: 
+CMake target name: SvgWidgets
+CMake exported target name: Qt6::SvgWidgets
+Contained in CMake package: Qt6SvgWidgets
+
+
+==============================================================================
+CMake
+versionInfo: 3.30.5
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qtsvgSbomBuildToolCMake
+
+
+==============================================================================
+CMake generator Ninja Multi-Config
+versionInfo: 1.10.2
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qtsvgSbomBuildToolCMakeGenerator
+
+
+==============================================================================
+Compiler MSVC
+versionInfo: 19.44.35227.0
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qtsvgSbomBuildToolCompiler
+
+
+==============================================================================
+Linker MSVC
+versionInfo: 14.44.35227.0
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qtsvgSbomBuildToolLinker
+

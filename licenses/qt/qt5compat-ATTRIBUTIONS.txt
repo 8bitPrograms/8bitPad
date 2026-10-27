@@ -1,0 +1,244 @@
+Qt SDK module: qt5compat 6.11.2
+Upstream revision: v6.11.2
+This inventory retains all SDK module entries, including some tools and platforms not shipped with 8bitPad.
+
+==============================================================================
+qt5compat
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: git://code.qt.io/qt/qt5compat.git
+comment: Built by CMake 3.30.5 with RelWithDebInfo;Debug configuration for Windows (AMD64)
+qt5compat was configured with:
+    qt-configure-module <sources>/qt5compat -- -DFFMPEG_DIR=C:\FFmpeg-n7.1.5\build\msvc\installed -DQT_DEPLOY_FFMPEG=TRUE -DFEATURE_clangcpp=OFF -DINPUT_headersclean=ON -DCMAKE_MAKE_PROGRAM=C:\Utils\Ninja\ninja.exe -DQT_INSTALL_CONFIG_INFO_FILES=ON -DQT_GENERATE_SBOM=ON -DQT_GENERATE_SOURCE_SBOM=ON -DQT_SBOM_VERIFY_SPDX_V2=ON -DQT_SBOM_REQUIRE_GENERATE_SPDX_V2_JSON=ON -DQT_SBOM_REQUIRE_VERIFY_SPDX_V2=ON -DQT_SBOM_VERIFY_CYDX_V1_6=ON -DQT_SBOM_REQUIRE_GENERATE_CYDX_V1_6=ON -DQT_SBOM_REQUIRE_VERIFY_CYDX_V1_6=ON -DQT_SBOM_PYTHON_INTERP=C:\Python310_64\python.exe -DQT_SBOM_PYTHON_APPS_PATH=C:\Python310_64\Scripts -DQT_LINT_SOURCE_SBOM=ON -DQT_INTERNAL_SBOM_DEFAULT_CHECKS=ON -DQT_INTERNAL_SBOM_AUDIT=ON -DQT_INTERNAL_SBOM_AUDIT_NO_ERROR=ON -DQT_BUILD_TESTS=OFF -DCMAKE_AUTOGEN_VERBOSE=ON -DCMAKE_MESSAGE_LOG_LEVEL=STATUS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DBUILD_WITH_PCH=OFF
+
+
+==============================================================================
+Core5Compat_Attribution_qbig5codecs
+versionInfo: unknown
+copyrightText: Copyright (C) 2000  Ming-Che Chuang
+Copyright (C) 2001, 2002  James Su, Turbolinux Inc.
+Copyright (C) 2002  WU Yi, HancomLinux Inc.
+Copyright (C) 2001, 2002  Anthony Fok, ThizLinux Laboratory Ltd.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qbig5codecs
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 0
+    Id: qbig5codecs
+    Name: Text Codecs: Big5, Big5-HKSCS
+    Description: The Big5 codecs (QBig5Codec, QBig5hkscsCodec)
+provide conversion to and from the Big5 encodings.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QBIG5CODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qeucjpcodec
+versionInfo: unknown
+copyrightText: Copyright (C) 1999 Serika Kurusugawa.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qeucjpcodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 1
+    Id: qeucjpcodec
+    Name: Text Codec: EUC-JP
+    Description: The EUC-JP text codec provides conversion to and from EUC-JP,
+the main legacy encoding for Unix machines in Japan.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QEUCJPCODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qeuckrcodec
+versionInfo: unknown
+copyrightText: Copyright (C) 1999-2000 Mizi Research Inc.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qeuckrcodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 2
+    Id: qeuckrcodec
+    Name: Text Codec: EUC-KR
+    Description: The EUC-KR text codec provides conversion to and from EUC-KR, KR,
+the main legacy encoding for Unix machines in Korea.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QEUCKRCODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qjiscodec
+versionInfo: unknown
+copyrightText: Copyright (C) 1999 Serika Kurusugawa.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qjiscodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 3
+    Id: qjiscodec
+    Name: Text Codec: ISO 2022-JP (JIS)
+    Description: The ISO 2022-JP (JIS) text codec provides conversion to and from ISO 2022-JP.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QJISCODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qsjiscodec
+versionInfo: unknown
+copyrightText: Copyright (C) 1999 Serika Kurusugawa.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qsjiscodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 4
+    Id: qsjiscodec
+    Name: Text Codec: Shift-JIS
+    Description: The Shift-JIS text codec provides conversion to and from Shift-JIS.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QSJISCODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qtsciicodec
+versionInfo: unknown
+copyrightText: Copyright (C) 2000 Hans Petter Bieker.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qtsciicodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 5
+    Id: qtsciicodec
+    Name: Text Codec: TSCII
+    Description: The TSCII text codec provides conversion to and from the Tamil TSCII
+encoding.
+    Qt usage: Used in Qt Core.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QTSCIICODEC.txt
+
+
+==============================================================================
+Core5Compat_Attribution_qbkcodec
+versionInfo: unknown
+copyrightText: Copyright (C) 2000 TurboLinux, Inc.  Written by Justin Yu and Sean Chen.
+Copyright (C) 2001, 2002 Turbolinux, Inc.  Written by James Su.
+Copyright (C) 2001, 2002 ThizLinux Laboratory Ltd.  Written by Anthony Fok.
+licenseDeclared: NOASSERTION
+licenseConcluded: BSD-2-Clause
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: Core5Compat_Attribution_qbkcodec
+    Information extracted from:
+     /src_dir/qt5compat/src/core5/codecs/qt_attribution.json
+    Entry index: 6
+    Id: qbkcodec
+    Name: Text Codec: GBK
+    Description: The GBK codec provides conversion to and from the Chinese
+GB18030/GBK/GB2312 encoding.
+    Qt usage: Used in Qt Core if ICU is not used. Configure with -icu to avoid.
+    License: BSD 2-clause "Simplified" License
+    License file: LICENSE.QBKCODEC.txt
+
+
+==============================================================================
+Core5Compat
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qt5compat.git
+comment: 
+CMake target name: Core5Compat
+CMake exported target name: Qt6::Core5Compat
+Contained in CMake package: Qt6Core5Compat
+
+
+==============================================================================
+qtgraphicaleffectsprivate
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qt5compat.git
+comment: 
+CMake target name: qtgraphicaleffectsprivate
+
+
+==============================================================================
+qtgraphicaleffectsplugin
+versionInfo: 6.11.2
+copyrightText: Copyright (C) The Qt Company Ltd. and other contributors.
+licenseDeclared: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+licenseConcluded: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+downloadLocation: git://code.qt.io/qt/qt5compat.git
+comment: 
+CMake target name: qtgraphicaleffectsplugin
+
+
+==============================================================================
+CMake
+versionInfo: 3.30.5
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qt5compatSbomBuildToolCMake
+
+
+==============================================================================
+CMake generator Ninja Multi-Config
+versionInfo: 1.10.2
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qt5compatSbomBuildToolCMakeGenerator
+
+
+==============================================================================
+Compiler MSVC
+versionInfo: 19.44.35227.0
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qt5compatSbomBuildToolCompiler
+
+
+==============================================================================
+Linker MSVC
+versionInfo: 14.44.35227.0
+copyrightText: NOASSERTION
+licenseDeclared: NOASSERTION
+licenseConcluded: NOASSERTION
+downloadLocation: NOASSERTION
+comment: 
+CMake target name: qt5compatSbomBuildToolLinker
+
