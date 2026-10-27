@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "tools": {
+    "linuxdeploy": {
+      "filename": "linuxdeploy-x86_64.AppImage",
+      "url": "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage",
+      "sha256": "c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d",
+      "hash_source": "GitHub release asset digest, verified 2026-10-25"
+    },
+    "linuxdeploy-plugin-qt": {
+      "filename": "linuxdeploy-plugin-qt-x86_64.AppImage",
+      "url": "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-qt-x86_64.AppImage",
+      "sha256": "15106be885c1c48a021198e7e1e9a48ce9d02a86dd0a1848f00bdbf3c1c92724",
+      "hash_source": "Observed SHA256 of official HTTPS release asset, 2026-10-25; not an upstream signature"
+    },
+    "patchelf": {
+      "filename": "patchelf-0.18.0-x86_64.tar.gz",
+      "url": "https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz",
+      "sha256": "ce84f2447fb7a8679e58bc54a20dc2b01b37b5802e12c57eece772a6f14bf3f0",
+      "hash_source": "Observed SHA256 of official HTTPS release asset, 2026-10-25"
+    },
+    "qtbase-source": {
+      "filename": "qtbase-everywhere-src-6.5.3.tar.xz",
+      "url": "https://download.qt.io/archive/qt/6.5/6.5.3/submodules/qtbase-everywhere-src-6.5.3.tar.xz",
+      "sha256": "df2f4a230be4ea04f9798f2c19ab1413a3b8ec6a80bef359f50284235307b546",
+      "hash_source": "Official archive .sha256 sidecar, verified 2026-10-25"
+    },
+    "qt5compat-source": {
+      "filename": "qt5compat-everywhere-src-6.5.3.tar.xz",
+      "url": "https://download.qt.io/archive/qt/6.5/6.5.3/submodules/qt5compat-everywhere-src-6.5.3.tar.xz",
+      "sha256": "eeb2a9e27771e15aaa7935f61a8024b46cc8e2044ae0ceacff2754c0cb806464",
+      "hash_source": "Official archive .sha256 sidecar, verified 2026-10-25"
+    },
+    "qtsvg-source": {
+      "filename": "qtsvg-everywhere-src-6.5.3.tar.xz",
+      "url": "https://download.qt.io/archive/qt/6.5/6.5.3/submodules/qtsvg-everywhere-src-6.5.3.tar.xz",
+      "sha256": "fc41c47b69ca1f80473cd4b11996394155781105345392961d064d04f95d5bef",
+      "hash_source": "Official archive .sha256 sidecar, verified 2026-10-25"
+    },
+    "wix": {
+      "filename": "wix314-binaries.zip",
+      "url": "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip",
+      "sha256": "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31",
+      "hash_source": "Observed SHA256 of official HTTPS release asset, 2026-10-25; not an upstream signature"
+    }
+  }
+}

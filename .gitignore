@@ -1,0 +1,91 @@
+# C++ objects and libs
+
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+
+# Qt-es
+
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+
+
+# Qt unit tests
+target_wrapper.*
+
+
+# QtCreator
+
+*.autosave
+
+# QtCtreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCtreator CMake
+CMakeLists.txt.user*
+CMakeCache.
+cmake_install.cmake
+__cmake_systeminformation
+
+*.pyc
+
+/build
+/build*
+/icon/ImageMagick
+
+# JetBrains IDE prefs
+.idea/
+
+# macOS annoyances
+.DS_Store
+*DS_Store
+._*
+
+.cpm-cache/
+
+# ninja
+.ninja_deps
+.ninja_lock
+.ninja_log
+build.ninja
+
+# Keep reproducible build helpers despite the broad upstream build-* rule.
+!scripts/build-windows.ps1
+!scripts/build-linux.sh
+/dist/
+*.log
+
+# Machine-local Qt SDK/modules and build entry point.
+/tooling/
+!/build-windows.cmd
+
+__pycache__/
+
+tooling/
+
+!/icon/8bitpad.png
+
+# Generated root makefile; source language definitions and vendor makefiles are retained.
+/Makefile
+
+# Preserve upstream language-model generation records as source evidence.
+!/thirdparty/uchardet/script/BuildLangModelLogs/*.log

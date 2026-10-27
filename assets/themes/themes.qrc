@@ -1,0 +1,21 @@
+<RCC>
+  <qresource prefix="/themes">
+    <file alias="catalog.json">catalog.json</file>
+    <file alias="NOTICES.md">NOTICES.md</file>
+    <file>licenses/ayu.txt</file>
+    <file>licenses/catppuccin.txt</file>
+    <file>licenses/dracula.txt</file>
+    <file>licenses/nord.txt</file>
+    <file>licenses/tokyo-night.txt</file>
+    <file>licenses/gruvbox.txt</file>
+    <file>licenses/solarized.txt</file>
+    <file>licenses/one-dark.txt</file>
+    <file>licenses/one-light.txt</file>
+    <file>licenses/tinted.txt</file>
+    <file>licenses/github.txt</file>
+    <file>licenses/everforest.txt</file>
+    <file>licenses/rose-pine.txt</file>
+    <file>licenses/kanagawa.txt</file>
+    <file>licenses/material.txt</file>
+  </qresource>
+</RCC>

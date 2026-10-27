@@ -1,0 +1,281 @@
+function rgb(x)
+    return ((x & 0xFF) << 16) | (x & 0xFF00) | ((x & 0xFF0000) >> 16)
+end
+
+function DetectLanguageFromContents(contents)
+    for name, L in pairs(languages) do
+        if L.first_line then
+            for _, pattern in ipairs(L.first_line) do
+                if string.match(contents, pattern) then
+                    return name
+                end
+            end
+        end
+    end
+    return "Text"
+end
+
+function FilterForLanguage(name)
+    local extensions = {}
+    local language_definition = languages[name]
+
+    if not language_definition.extensions then
+        return nil
+    end
+
+    for _, ext in ipairs(language_definition.extensions) do
+        if #ext > 0 then
+            extensions[#extensions + 1] = "*." .. ext
+        end
+    end
+
+    return  name .. " Files (" .. table.concat(extensions, " ") .. ")"
+end
+
+function DialogFilters()
+    local filters = {}
+
+    for name, L in pairs(languages) do
+        local filter = FilterForLanguage(name)
+        if filter then
+            filters[#filters + 1] = filter
+        end
+    end
+
+    table.sort(filters, function (a, b) return a:lower() < b:lower() end)
+    table.insert(filters, 1, "All Files (*)")
+
+    return table.concat(filters, ";;")
+end
+
+function SetStyle(L)
+    if L.styles then
+        for _, style in pairs(L.styles) do
+            editor.StyleFore[style.id] = style.fgColor
+            editor.StyleBack[style.id] = style.bgColor
+
+            if style.fontStyle then
+                editor.StyleBold[style.id] = (style.fontStyle & 1 == 1)
+                editor.StyleItalic[style.id] = (style.fontStyle & 2 == 2)
+                editor.StyleUnderline[style.id] = (style.fontStyle & 4 == 4)
+                editor.StyleEOLFilled[style.id] = (style.fontStyle & 8 == 8)
+            end
+        end
+    end
+
+    if L.keywords then
+        for id, kw in pairs(L.keywords) do
+            editor.KeyWords[id] = kw
+        end
+    end
+
+    if L.properties then
+        for p, v in pairs(L.properties) do
+            editor.Property[p] = v
+        end
+    end
+end
+
+function SetLanguage(languageName)
+    local L = languages[languageName]
+
+    if not skip_tabs then
+        editor.UseTabs = (L.tabSettings or "tabs") == "tabs"
+    end
+
+    if not skip_tabwidth then
+        editor.TabWidth = L.tabSize or 4
+    end
+
+    editor.MarginWidthN[2] = L.disableFoldMargin and 0 or 16
+
+    SetStyle(L)
+
+    if L.additionalLanguages then
+        for _, language in pairs(L.additionalLanguages) do
+            SetStyle(languages[language])
+        end
+    end
+
+
+    editor.Property["fold"] = "1"
+    editor.Property["fold.compact"] = "0"
+end
+
+function GetLanguageKeywords(languageName)
+    local L = languages[languageName]
+
+    if not L then
+        return {}
+    end
+
+    local seen = {}
+
+    local function collectKeywords(lang)
+        if not lang then return end
+        if lang.completionKeywords then
+            for token in lang.completionKeywords:gmatch("%S+") do
+                seen[token] = true
+            end
+        end
+        if lang.keywords then
+            for _, kwString in pairs(lang.keywords) do
+                for token in kwString:gmatch("%S+") do
+                    seen[token] = true
+                end
+            end
+        end
+    end
+
+    collectKeywords(L)
+
+    if L.additionalLanguages then
+        for _, language in pairs(L.additionalLanguages) do
+            collectKeywords(languages[language])
+        end
+    end
+
+    local result = {}
+    for token, _ in pairs(seen) do
+        result[#result + 1] = token
+    end
+
+    table.sort(result)
+
+    return result
+end
+
+function CopySqlLanguage(extensions, keywords, properties)
+    local sql = require("sql")
+    local L = {}
+    L.lexer = "sql"
+    L.singleLineComment = "-- "
+    L.extensions = extensions
+    L.keywords = keywords
+    L.properties = properties or {}
+    L.styles = {}
+    for name, style in pairs(sql.styles) do
+        local item = {}
+        for key, value in pairs(style) do
+            item[key] = value
+        end
+        L.styles[name] = item
+    end
+    L.styles["USER1"] = nil
+    L.styles["KEYWORD2"] = nil
+    L.styles["TYPE"] = {
+        id = 19,
+        fgColor = rgb(0x800080),
+        bgColor = rgb(0xFFFFFF),
+    }
+    L.styles["FUNCTION"] = {
+        id = 16,
+        fgColor = rgb(0x0000FF),
+        bgColor = rgb(0xFFFFFF),
+        fontStyle = 1,
+    }
+    L.styles["PREPROCESSOR"] = {
+        id = 8,
+        fgColor = rgb(0x804000),
+        bgColor = rgb(0xFFFFFF),
+    }
+    return L
+end
+
+languages = {}
+languages["ActionScript"] = require("actionscript")
+languages["ADA"] = require("ada")
+languages["Assembly"] = require("asm")
+languages["ASN.1"] = require("asn1")
+languages["asp"] = require("asp")
+languages["autoIt"] = require("autoit")
+languages["AviSynth"] = require("avs")
+languages["BaanC"] = require("baanc")
+languages["bash"] = require("bash")
+languages["Batch"] = require("batch")
+languages["BlitzBasic"] = require("blitzbasic")
+languages["C"] = require("c")
+languages["Caml"] = require("caml")
+languages["CMakeFile"] = require("cmake")
+languages["COBOL"] = require("cobol")
+languages["Csound"] = require("csound")
+languages["CoffeeScript"] = require("coffeescript")
+languages["C++"] = require("cpp")
+languages["C#"] = require("cs")
+languages["CSS"] = require("css")
+languages["SCSS"] = require("scss")
+languages["D"] = require("d")
+languages["DIFF"] = require("diff")
+languages["Erlang"] = require("erlang")
+languages["ESCRIPT"] = require("escript")
+languages["Forth"] = require("forth")
+languages["Fortran (free form)"] = require("fortran")
+languages["Fortran (fixed form)"] = require("fortran77")
+languages["FreeBasic"] = require("freebasic")
+languages["GUI4CLI"] = require("gui4cli")
+languages["Go"] = require("go")
+languages["Haskell"] = require("haskell")
+languages["HTML"] = require("html")
+languages["ini file"] = require("ini")
+languages["InnoSetup"] = require("inno")
+languages["Intel HEX"] = require("ihex")
+languages["Java"] = require("java")
+languages["JavaScript"] = require("javascript")
+languages["JSON"] = require("json")
+languages["KiXtart"] = require("kix")
+languages["LISP"] = require("lisp")
+languages["LaTeX"] = require("latex")
+languages["Lua"] = require("lua")
+languages["Less"] = require("less")
+languages["Makefile"] = require("makefile")
+languages["Markdown"] = require("markdown")
+languages["Matlab"] = require("matlab")
+languages["MMIXAL"] = require("mmixal")
+languages["Nimrod"] = require("nimrod")
+languages["Nix"] = require("nix")
+languages["extended crontab"] = require("nncrontab")
+languages["Dos Style"] = require("nfo")
+languages["NSIS"] = require("nsis")
+languages["OScript"] = require("oscript")
+languages["Objective-C"] = require("objc")
+languages["Pascal"] = require("pascal")
+languages["Perl"] = require("perl")
+languages["PHP"] = require("php")
+languages["Postscript"] = require("postscript")
+languages["PowerShell"] = require("powershell")
+languages["Properties file"] = require("props")
+languages["PureBasic"] = require("purebasic")
+languages["Python"] = require("python")
+languages["R"] = require("r")
+languages["REBOL"] = require("rebol")
+languages["registry"] = require("registry")
+languages["RC"] = require("rc")
+languages["Ruby"] = require("ruby")
+languages["Rust"] = require("rust")
+languages["Scheme"] = require("scheme")
+languages["Smalltalk"] = require("smalltalk")
+languages["spice"] = require("spice")
+languages["SQL"] = require("sql")
+languages["SQL (Oracle)"] = require("sql-oracle")
+languages["SQL (PostgreSQL)"] = require("sql-postgresql")
+languages["SQL (MSSQL)"] = require("sql-mssql")
+languages["S-Record"] = require("srec")
+languages["Swift"] = require("swift")
+languages["TCL"] = require("tcl")
+languages["Tektronix extended HEX"] = require("tehex")
+languages["TeX"] = require("tex")
+languages["Text"] = require("text")
+languages["VB / VBS"] = require("vb")
+languages["txt2tags"] = require("txt2tags")
+languages["Verilog"] = require("verilog")
+languages["VHDL"] = require("vhdl")
+languages["Visual Prolog"] = require("visualprolog")
+languages["XML"] = require("xml")
+languages["YAML"] = require("yaml")
+languages["Abaqus"] = require("abaqus")
+
+languages["Groovy"] = require("groovy")
+languages["Jenkinsfile"] = require("jenkinsfile")
+languages["YAML (GitHub Actions)"] = require("yaml-github-actions")
+languages["YAML (Azure Pipelines)"] = require("yaml-azure-pipelines")
+languages["YAML (Ansible)"] = require("yaml-ansible")
