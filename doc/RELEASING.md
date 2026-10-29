@@ -22,7 +22,7 @@ The ordinary release requires all six standard targets. Enable experimental 32-b
 
 ## Runtime policy
 
-Qt 6.11.2 is built from versioned official source archives with their official SHA256 sidecars. Each native job caches a matching SDK; there is no dependence on a developer's local Qt path. The base SDK on berry's workstation remains separate.
+Qt 6.11.2 is built from versioned official source archives with their official SHA256 sidecars. Each native job caches a matching SDK; there is no dependence on a developer's local Qt path. A private workstation SDK stays outside the hosted build.
 
 Windows packages carry their Qt DLLs, plugins and app-local redistributable MSVC runtime. Pad carries its editor runtime and opens external terminals only when the user requests one; a separate terminal is not an application startup dependency.
 

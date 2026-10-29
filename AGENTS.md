@@ -17,12 +17,12 @@ The launcher starts Windows PowerShell with no profile. The script finds the MSV
 
 Qt resolution order: `-QtRoot`, `BIT8PAD_QT_ROOT`, local JSON config, `tooling/qt-sdk`, sibling `8bitShell/build/tooling/qt-sdk`, standard Qt MSVC installs. Core5Compat can live in a matching overlay selected through `-QtCompatRoot`, `BIT8PAD_QT_COMPAT_ROOT`, local JSON config or `tooling/qt-compat`. Never modify the shared base SDK to add a module. Do not commit the local SDK/config or build artifacts.
 
-On berry's workstation, verified on 2026-10-23:
+Verified Qt 6.11.2 MSVC x64 layout:
 
-- Base SDK: `C:\Users\berry\Github\8bitShell\build\tooling\qt-sdk` (Qt 6.11.2, MSVC x64).
-- Matching Core5Compat: repository-local `tooling\qt-compat`.
+- Base SDK: the ignored local config, `tooling/qt-sdk`, or the sibling `8bitShell/build/tooling/qt-sdk`.
+- Matching Core5Compat: repository-local `tooling/qt-compat`.
 - CMake/Ninja: Visual Studio 2022 Build Tools under `Common7\IDE\CommonExtensions\Microsoft\CMake`.
-- Machine configuration: `tooling\windows.local.json` (ignored by Git).
+- Machine configuration: `tooling/windows.local.json` (ignored by Git).
 
 For a different machine, pass an installed MSVC Qt SDK explicitly or create the local JSON file as described in `doc/BUILDING-WINDOWS.md`. Build in native Windows; the MSVC SDK cannot compile the Linux target from WSL.
 
