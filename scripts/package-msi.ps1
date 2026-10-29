@@ -64,6 +64,9 @@ $required = @('8bitPad.exe', 'Qt6Core.dll', 'Qt6Core5Compat.dll', 'Qt6Gui.dll', 
 foreach ($relative in $required) {
     if (!(Test-Path -LiteralPath (Join-Path $package $relative) -PathType Leaf)) { throw "Missing required package file: $relative" }
 }
+if (!(Test-Path -LiteralPath (Join-Path $package '8bitPadFileIcons.dll') -PathType Leaf)) {
+    throw 'Missing required package file: 8bitPadFileIcons.dll'
+}
 foreach ($relative in @('licenses', 'theme-licenses')) {
     if (!(Test-Path -LiteralPath (Join-Path $package $relative) -PathType Container)) { throw "Missing package license directory: $relative" }
 }

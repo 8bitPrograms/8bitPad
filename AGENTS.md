@@ -60,10 +60,11 @@ terminal. Preferences and menu tests inject discovery/launch callbacks.
 New profiles default to Classic Light. Preserve valid saved theme choices.
 FileAssociations performs a single selected-extension batch; FileAssociationsDialog
 owns the checkable/grouped selection UI. Windows registration is not proof of a
-default change: use the supported Default apps settings flow, never UserChoice
-hash manipulation. Linux works by MIME type, so aliases can share defaults.
-Association tests must inject temporary storage and process/URL callbacks; never
-change the workstation's real associations as part of a build or screenshot run.
+default change: apply requested per-user mappings directly and verify the effective
+handler with the Shell API. Show protected choices inline without automatically
+opening Settings; never manipulate UserChoice hashes or permissions. Linux works by MIME type, so aliases can share defaults.
+Association tests must inject temporary storage, process and Shell-query callbacks;
+never change the workstation's real associations as part of a build or screenshot run.
 
 ## Installers and release automation
 

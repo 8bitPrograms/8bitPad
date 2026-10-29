@@ -112,11 +112,9 @@ FileAssociationsDialog::FileAssociationsDialog(QWidget *parent, Callbacks callba
 
     requestDefaults = new QCheckBox(this);
     requestDefaults->setObjectName(QStringLiteral("associationRequestDefaults"));
-#ifdef Q_OS_WIN
-    requestDefaults->setText(tr("Open Windows Default apps after registering the selected types"));
-    requestDefaults->setToolTip(tr("Windows requires you to choose 8bitPad as the default. Registration does not change that choice silently."));
-#else
     requestDefaults->setText(tr("Make 8bitPad the default application for the selected file types"));
+#ifdef Q_OS_WIN
+    requestDefaults->setToolTip(tr("Apply directly where Windows allows it. Any types requiring Windows confirmation are listed here."));
 #endif
     requestDefaults->setChecked(true);
     layout->addWidget(requestDefaults);
@@ -153,7 +151,7 @@ FileAssociationsDialog::FileAssociationsDialog(QWidget *parent, Callbacks callba
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     buttons->setObjectName(QStringLiteral("associationButtons"));
 #ifdef Q_OS_WIN
-    apply = buttons->addButton(tr("Register selected file types"), QDialogButtonBox::ApplyRole);
+    apply = buttons->addButton(tr("Associate selected file types"), QDialogButtonBox::ApplyRole);
 #else
     apply = buttons->addButton(tr("Apply selected file types"), QDialogButtonBox::ApplyRole);
 #endif
@@ -347,15 +345,28 @@ void FileAssociationsDialog::applySelection()
         registered.insert(canonicalExtension(extension));
     {
         const QSignalBlocker blocker(tree);
-        for (auto it = extensionItems.cbegin(); it != extensionItems.cend(); ++it)
-            it.value()->setText(1, registered.contains(it.key()) ? tr("Registered") : QString());
+        for (auto it = extensionItems.cbegin(); it != extensionItems.cend(); ++it) {
+            QString state = registered.contains(it.key()) ? tr("Registered") : QString();
+            if (result.defaultExtensions.contains(it.key()))
+                state = tr("Default");
+            else if (result.pendingDefaultExtensions.contains(it.key()))
+                state = tr("Needs Windows confirmation");
+            it.value()->setText(1, state);
+        }
     }
     QString message = tr("%1 file types registered.").arg(result.registeredExtensions.size());
 #ifdef Q_OS_WIN
-    if (result.defaultsUiOpened)
-        message += QLatin1Char(' ') + tr("Choose 8bitPad for those types in Windows Default apps.");
-    else if (result.errors.isEmpty())
-        message += QLatin1Char(' ') + tr("Windows keeps your current default choices until you change them in Default apps.");
+    if (!result.defaultExtensions.isEmpty())
+        message += QLatin1Char(' ') + tr("Default application set for %1 file types.").arg(result.defaultExtensions.size());
+    if (!result.pendingDefaultExtensions.isEmpty()) {
+        QStringList types;
+        for (const QString &extension : result.pendingDefaultExtensions.mid(0, 6))
+            types << '.' + extension;
+        if (result.pendingDefaultExtensions.size() > types.size())
+            types << tr("%1 more").arg(result.pendingDefaultExtensions.size() - types.size());
+        message += QLatin1Char(' ') + tr("Windows requires confirmation for %1 file types: %2.")
+            .arg(result.pendingDefaultExtensions.size()).arg(types.join(", "));
+    }
 #else
     if (!result.defaultMimeTypes.isEmpty())
         message += QLatin1Char(' ') + tr("Default application updated for %1 content types.").arg(result.defaultMimeTypes.size());

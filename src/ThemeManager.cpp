@@ -117,6 +117,8 @@ const QList<EditorTheme> &ThemeManager::catalog()
             theme.foreground = color("foreground");
             theme.comment = color("comment");
             theme.accent = color("accent");
+            theme.secondaryAccent = object.contains(QStringLiteral("secondaryAccent"))
+                ? color("secondaryAccent") : theme.accent;
             theme.keyword = color("keyword");
             theme.string = color("string");
             theme.number = color("number");
@@ -149,6 +151,39 @@ ThemeManager::ThemeManager(ApplicationSettings *settings, LuaState *lua,
                                        QLatin1String(defaultTheme)).toString();
     if (!setTheme(requested))
         setTheme(QLatin1String(defaultTheme));
+}
+
+bool ThemeManager::isBonusTheme(const QString &id)
+{
+    return id == "blueberry" || id == "blueberry-light" || id.startsWith("cyberpunk-");
+}
+
+bool ThemeManager::bonusThemesUnlocked() const
+{
+    return mSettings->value("appearance/bonusThemesUnlocked", false).toBool();
+}
+
+QList<EditorTheme> ThemeManager::availableThemes() const
+{
+    QList<EditorTheme> result;
+    for (const auto &theme : catalog())
+        if (bonusThemesUnlocked() || !isBonusTheme(theme.id))
+            result.append(theme);
+    return result;
+}
+
+bool ThemeManager::registerVersionTap()
+{
+    if (bonusThemesUnlocked()) return false;
+    if (!mVersionTapTimer.isValid() || mVersionTapTimer.elapsed() > 1500)
+        mVersionTapCount = 0;
+    mVersionTapTimer.start();
+    if (++mVersionTapCount < 7) return false;
+    mVersionTapCount = 0;
+    mSettings->setValue("appearance/bonusThemesUnlocked", true);
+    mSettings->sync();
+    emit bonusThemesUnlockedChanged();
+    return true;
 }
 
 const EditorTheme &ThemeManager::currentTheme() const
@@ -323,6 +358,37 @@ ads--CDockAreaTitleBar QToolButton { background: transparent; color: @tabText; b
 #tabCloseButton { background: transparent; border: none; padding: 2px; }
 #tabCloseButton:hover { background: @selected; }
 )QSS");
+    if (t.id.startsWith(QLatin1String("cyberpunk-"))) {
+        // These three palettes use the concept's saturated chrome as well as
+        // its editor colors. Keep the compact layout and readable code surface.
+        sheet += QStringLiteral(R"QSS(
+QMenuBar { background: @accent; color: @onAccent; border-bottom: 2px solid @secondaryAccent; }
+QMenuBar::item { color: @onAccent; }
+QMenuBar::item:selected { background: @accentHover; color: @onAccent; }
+QMenuBar QToolBar, QMenuBar QToolButton { background: @accent; color: @onAccent; border: none; }
+QMenuBar QToolButton:hover { background: @accentHover; }
+QToolBar#mainToolBar { border-bottom: 1px solid @secondaryAccent; }
+QDockWidget::title { background: @accentSurface; color: @secondaryAccent; border-bottom: 1px solid @secondaryAccent; }
+QTabBar::tab:selected { background: @accent; color: @onAccent; border-bottom: 2px solid @accent; }
+ads--CDockWidgetTab[activeTab="true"], ads--CDockWidgetTab[activeTab="true"]:hover {
+    background: @accent; color: @onAccent; border-bottom: 2px solid @accent;
+}
+ads--CDockWidgetTab[activeTab="true"] QLabel { color: @onAccent; background: @background; }
+ads--CDockWidgetTab[activeTab="true"] QLabel#dockWidgetTabLabel,
+ads--CDockWidgetTab[activeTab="true"] QToolButton { color: @onAccent; background: transparent; }
+QStatusBar { background: @accentSurface; color: @accent; border-top: 2px solid @accent; }
+QStatusBar QLabel { color: @accent; }
+QLabel#preferencesHeading { color: @secondaryAccent; }
+QListWidget#preferencesCategories::item:selected { background: @accent; color: @onAccent; border-left: 2px solid @secondaryAccent; }
+QListWidget#preferencesCategories { selection-background-color: @accent; selection-color: @onAccent; }
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QAbstractSpinBox:focus, QComboBox:focus { border-color: @secondaryAccent; }
+QPushButton:default { background: @accent; color: @onAccent; border-color: @accent; }
+)QSS");
+        sheet.replace(QLatin1String("@secondaryAccent"), t.secondaryAccent.name());
+        sheet.replace(QLatin1String("@onAccent"), liftContrast(t.background, t.accent, 4.5).name());
+        sheet.replace(QLatin1String("@accentHover"), blend(t.accent, QColor(Qt::white), 0.25).name());
+        sheet.replace(QLatin1String("@accentSurface"), blend(t.background, t.accent, 0.10).name());
+    }
     sheet.replace(QLatin1String("@background"), t.background.name());
     sheet.replace(QLatin1String("@menu"), chrome.menu.name());
     sheet.replace(QLatin1String("@toolbar"), chrome.toolbar.name());

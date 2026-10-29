@@ -44,9 +44,27 @@
     <!-- Programs is shared with other per-user applications. Resolve our target
          without owning/removing that shared parent directory (ICE64). -->
     <SetDirectory Id="INSTALLFOLDER" Value="[LocalAppDataFolder]Programs\8bitPad" />
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="PadFileIconHandler" Guid="*" Win64="yes">
+        <RegistryValue Root="HKCU" Key="Software\Classes\CLSID\{D325870F-4B1C-4D26-A03C-3575B1607635}"
+                       Type="string" Value="8bitPad file icons" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\CLSID\{D325870F-4B1C-4D26-A03C-3575B1607635}\InprocServer32"
+                       Type="string" Value="[INSTALLFOLDER]8bitPadFileIcons.dll" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\CLSID\{D325870F-4B1C-4D26-A03C-3575B1607635}\InprocServer32"
+                       Name="ThreadingModel" Type="string" Value="Apartment" />
+      </Component>
+      <Component Id="UserCommandPath" Guid="*" Win64="yes">
+        <Environment Id="UserCommandPathValue" Name="PATH" Action="set" Part="last"
+                     System="no" Permanent="no" Value="[INSTALLFOLDER]" />
+        <RegistryValue Root="HKCU" Key="Software\8bitPad\Installer\Components"
+                       Name="UserCommandPath" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
     <Feature Id="MainApplication" Title="8bitPad" Level="1" Absent="disallow">
       <ComponentGroupRef Id="ApplicationPayload" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="UserCommandPath" />
+      <ComponentRef Id="PadFileIconHandler" />
     </Feature>
     <UIRef Id="WixUI_Minimal" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />

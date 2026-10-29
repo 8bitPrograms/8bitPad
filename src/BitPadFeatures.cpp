@@ -41,14 +41,27 @@ BitPadFeatures::BitPadFeatures(MainWindow *window, NotepadNextApplication *app)
         action->setObjectName("theme_" + theme.id);
         action->setCheckable(true);
         action->setData(theme.id);
-        action->setChecked(theme.id == app->getThemeManager()->currentThemeId());
         themeGroup->addAction(action);
-        connect(action, &QAction::triggered, this, [app, id = theme.id] { app->getThemeManager()->setTheme(id); });
+        connect(action, &QAction::triggered, this, [app, id = theme.id] {
+            auto *themes = app->getThemeManager();
+            if (!ThemeManager::isBonusTheme(id) || themes->bonusThemesUnlocked())
+                themes->setTheme(id);
+        });
     }
-    connect(app->getThemeManager(), &ThemeManager::themeChanged, this, [this, themeGroup] {
-        for (auto *action : themeGroup->actions())
-            action->setChecked(action->data().toString() == this->app->getThemeManager()->currentThemeId());
-    });
+    const auto refreshThemeActions = [app, themeGroup] {
+        auto *themes = app->getThemeManager();
+        for (auto *action : themeGroup->actions()) {
+            const QString id = action->data().toString();
+            const bool available = !ThemeManager::isBonusTheme(id) || themes->bonusThemesUnlocked();
+            action->setVisible(available);
+            action->setEnabled(available);
+            action->setChecked(id == themes->currentThemeId());
+        }
+    };
+    refreshThemeActions();
+    connect(app->getThemeManager(), &ThemeManager::themeChanged, this, refreshThemeActions);
+    connect(app->getThemeManager(), &ThemeManager::bonusThemesUnlockedChanged, this, refreshThemeActions);
+    connect(themeMenu, &QMenu::aboutToShow, this, refreshThemeActions);
 
     settingsMenu->addSeparator();
     vimAction = new QAction(tr("Vim mode"), window);
@@ -82,7 +95,10 @@ BitPadFeatures::BitPadFeatures(MainWindow *window, NotepadNextApplication *app)
     paletteAction->setObjectName("actionCommandPalette");
     paletteAction->setShortcut(QKeySequence("Ctrl+Shift+P"));
     settingsMenu->addAction(paletteAction);
-    connect(paletteAction, &QAction::triggered, this, &BitPadFeatures::showCommandPalette);
+    connect(paletteAction, &QAction::triggered, this, [this, refreshThemeActions] {
+        refreshThemeActions();
+        showCommandPalette();
+    });
     auto *shortcutsAction = new QAction(tr("Keyboard shortcuts…"), window);
     shortcutsAction->setObjectName("actionKeyboardShortcuts");
     settingsMenu->addAction(shortcutsAction);
@@ -233,12 +249,14 @@ void BitPadFeatures::updateMode()
 void BitPadFeatures::showCommandPalette()
 {
     QDialog dialog(window);
+    dialog.setObjectName(QStringLiteral("commandPaletteDialog"));
     dialog.setWindowTitle(tr("Command palette"));
     dialog.resize(620, 430);
     auto *layout = new QVBoxLayout(&dialog);
     auto *filter = new QLineEdit(&dialog);
     filter->setPlaceholderText(tr("Type a command, theme, or menu action…"));
     auto *list = new QListWidget(&dialog);
+    list->setObjectName(QStringLiteral("commandPaletteCommands"));
     layout->addWidget(filter);
     layout->addWidget(list);
     QHash<QListWidgetItem *, QPointer<QAction>> commands;

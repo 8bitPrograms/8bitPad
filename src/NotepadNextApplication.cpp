@@ -30,6 +30,7 @@
 #include "ApplicationSettings.h"
 #include "ThemeManager.h"
 #include "AppSmokeTest.h"
+#include "FileAssociations.h"
 #include <QStatusBar>
 
 #include "LuaState.h"
@@ -47,11 +48,11 @@
 #include <Windows.h>
 #endif
 
-const SingleApplication::Options opts = SingleApplication::ExcludeAppPath | SingleApplication::ExcludeAppVersion | SingleApplication::SecondaryNotification;
+const SingleApplication::Options opts = SingleApplication::User | SingleApplication::ExcludeAppPath | SingleApplication::ExcludeAppVersion;
 
 void parseCommandLine(QCommandLineParser &parser, const QStringList &args)
 {
-    parser.setApplicationDescription("8bitPad — native text editor for Windows and Linux");
+    parser.setApplicationDescription("8bitPad - native text editor for Windows and Linux");
     parser.addHelpOption();
     parser.addVersionOption();
 
@@ -76,7 +77,7 @@ static QString toLocalFileName(const QString file)
 }
 
 NotepadNextApplication::NotepadNextApplication(int &argc, char **argv)
-    : SingleApplication(argc, argv, true, opts)
+    : SingleApplication(argc, argv, true, opts, 1000, qEnvironmentVariable("BIT8PAD_PROFILE"))
 {
 #ifdef Q_OS_WIN
     // Create a system-wide mutex so the installer can detect if it is running
@@ -229,6 +230,18 @@ bool NotepadNextApplication::init()
 
     window->show();
 
+#ifdef Q_OS_WIN
+    // Normal desktop starts repair our existing icon records after an update.
+    // Profile-based/offscreen verification must never write the real registry.
+    if (!parser.isSet("smoke-test") && !parser.isSet("profile") &&
+        qEnvironmentVariableIsEmpty("BIT8PAD_PROFILE") && platformName() == "windows") {
+        QTimer::singleShot(0, this, [] {
+            const auto result = FileAssociations::refreshOwnedIcons();
+            if (!result.ok()) qWarning().noquote() << result.errors.join('\n');
+        });
+    }
+#endif
+
     if (parser.isSet("smoke-test")) {
         const QString output = parser.value("smoke-test");
         QTimer::singleShot(200, this, [this, output] { runAppSmokeTest(this, window, output); });
@@ -375,31 +388,24 @@ QString NotepadNextApplication::detectLanguageFromContents(ScintillaNext *editor
     )");
 }
 
-void NotepadNextApplication::sendInfoToPrimaryInstance()
+bool NotepadNextApplication::sendInfoToPrimaryInstance()
 {
     qInfo(Q_FUNC_INFO);
 
-    QStringList argsToSend;
-    const QStringList positionalArguments = parser.positionalArguments();
-
-    // Any positional arguments need translated into an absolute file path relative to this instance
-    for (const QString &arg : arguments()) {
-        if (positionalArguments.contains(arg)) {
-            QFileInfo fileInfo(arg);
-            argsToSend.append(fileInfo.absoluteFilePath());
-        } else {
-            argsToSend.append(arg);
-        }
-    }
-
+    QStringList argsToSend{applicationFilePath()};
+    for (const QString &file : parser.positionalArguments())
+        argsToSend << QFileInfo(toLocalFileName(file)).absoluteFilePath();
+    if (parser.isSet("workspace"))
+        argsToSend << "--workspace" << QFileInfo(toLocalFileName(parser.value("workspace"))).absoluteFilePath();
+    if (parser.isSet("n")) argsToSend << "-n" << parser.value("n");
     QByteArray buffer;
     QDataStream stream(&buffer, QIODevice::WriteOnly);
     stream << argsToSend;
-
-    const bool success = sendMessage(buffer);
+    const bool success = sendMessage(buffer, 5000);
     if (!success) {
         qWarning("sendMessage() unsuccessful");
     }
+    return success;
 }
 
 void NotepadNextApplication::receiveInfoFromSecondaryInstance(quint32 instanceId, QByteArray message)
@@ -410,11 +416,14 @@ void NotepadNextApplication::receiveInfoFromSecondaryInstance(quint32 instanceId
 
     QDataStream stream(&message, QIODevice::ReadOnly);
     QStringList args;
-
     stream >> args;
+    if (stream.status() != QDataStream::Ok || args.isEmpty() || args.size() > 512) return;
 
     QCommandLineParser parser;
-    parseCommandLine(parser, args);
+    // Configure without processing untrusted options through process(), which
+    // would terminate the running editor on a malformed local request.
+    parseCommandLine(parser, {applicationFilePath()});
+    if (!parser.parse(args)) { qWarning() << "Invalid file-open command:" << parser.errorText(); return; }
 
     openFiles(parser.positionalArguments());
     if (parser.isSet("workspace"))

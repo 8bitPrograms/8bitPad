@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "FileAssociations.h"
+#include "FileTypeIcons.h"
+#include "FileIconHandlerWindows.h"
 #include "ShellIntegration.h"
 
 #include <QDir>
@@ -31,6 +33,11 @@ Services windows(QSettings &store)
     services.platform = Platform::Windows;
     services.executable = "C:/Program Files/8bitPad/8bitPad.exe";
     services.registry = &store;
+    services.queryDefaultProgId = [&store](const QString &extension) {
+        const QString chosen = store.value("Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/."
+            + extension + "/UserChoice/ProgId").toString();
+        return chosen.isEmpty() ? store.value("Software/Classes/." + extension + "/.").toString() : chosen;
+    };
     return services;
 }
 
@@ -55,10 +62,17 @@ class FileAssociationsTest : public QObject
 private slots:
     void parsesCustomBatchAtomically();
     void catalogContainsOnlyUniqueTextTypes();
-    void windowsBatchPreservesUserChoiceAndOpensSettingsOnce();
+    void windowsBatchAssociatesAvailableAndReportsProtected();
+    void windowsRegistrationOnlyDoesNotChangeDefaults();
+    void windowsCleanupRestoresPreviousDefaults();
+    void windowsExistingApplicationDefaultIsRecognized();
+    void windowsIconsUseEmbeddedTypeResources();
+    void windowsIconRefreshPreservesDefaultsAndOtherCopies();
+    void windowsIconRefreshHandlesGenericOpenWithAndEmptyRegistry();
+    void windowsNativeIconsCoverSharedApplicationAndSafeFallback();
     void windowsContextToggleDoesNotChangeAssociations();
     void windowsCleanupIncludesCustomAndPreservesSettings();
-    void windowsDefaultUiFailureIsReported();
+    void windowsUnverifiedChangesAreRestored();
     void linuxDeduplicatesAndConfirmsMimeDefaults();
     void linuxFailuresNeverClaimDefaults();
     void linuxCustomRegistrationAndCleanupStayInXdg();
@@ -99,7 +113,7 @@ void FileAssociationsTest::catalogContainsOnlyUniqueTextTypes()
     QVERIFY(!seen.contains("exe") && !seen.contains("png") && !seen.contains("url"));
 }
 
-void FileAssociationsTest::windowsBatchPreservesUserChoiceAndOpensSettingsOnce()
+void FileAssociationsTest::windowsBatchAssociatesAvailableAndReportsProtected()
 {
     QTemporaryDir temp;
     QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
@@ -107,31 +121,237 @@ void FileAssociationsTest::windowsBatchPreservesUserChoiceAndOpensSettingsOnce()
     store.setValue(protectedKey + "ProgId", "Other.Text");
     store.setValue(protectedKey + "Hash", "unchanged");
     store.setValue("Software/Classes/.txt/.", "Other.Text");
-    int opens = 0;
+    store.setValue("Software/Classes/.py/.", "Other.Python");
     int notifications = 0;
-    QUrl openedUrl;
     auto services = windows(store);
-    services.openDefaults = [&](const QUrl &url) {
-        ++opens;
-        openedUrl = url;
-        return true;
-    };
     services.associationsChanged = [&] { ++notifications; };
     Backend backend(services);
     const auto result = backend.apply({"txt", "py", "TXT"}, true);
     QVERIFY(result.ok());
     QCOMPARE(result.registeredExtensions, QStringList({"txt", "py"}));
     QVERIFY(result.defaultMimeTypes.isEmpty());
-    QVERIFY(result.defaultsUiOpened);
-    QCOMPARE(opens, 1);
-    QCOMPARE(notifications, 1);
-    QCOMPARE(openedUrl.toString(), QString("ms-settings:defaultapps?registeredAppUser=8bitPad"));
+    QCOMPARE(result.defaultExtensions, QStringList{"py"});
+    QCOMPARE(result.pendingDefaultExtensions, QStringList{"txt"});
+    QCOMPARE(notifications, 3); // Registration, direct mappings, failed-mapping rollback.
+    QCOMPARE(store.value("Software/Classes/.py/.").toString(), QString("8bitPad.py"));
+    QCOMPARE(store.value("Software/8bitPad/ShellIntegration/PreviousDefaults/py/Value").toString(), QString("Other.Python"));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Present"));
     QCOMPARE(store.value(protectedKey + "ProgId").toString(), QString("Other.Text"));
     QCOMPARE(store.value(protectedKey + "Hash").toString(), QString("unchanged"));
     QCOMPARE(store.value("Software/Classes/.txt/.").toString(), QString("Other.Text"));
     QVERIFY(store.contains("Software/Classes/.py/OpenWithProgids/8bitPad.py"));
     QCOMPARE(store.value("Software/8bitPad/Capabilities/FileAssociations/.txt").toString(), QString("8bitPad.txt"));
     QVERIFY(!backend.contextMenuInstalled());
+}
+
+void FileAssociationsTest::windowsRegistrationOnlyDoesNotChangeDefaults()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    store.setValue("Software/Classes/.txt/.", "Other.Text");
+    auto services = windows(store);
+    int queries = 0;
+    services.queryDefaultProgId = [&](const QString &) { ++queries; return QString(); };
+    const auto result = Backend(services).apply({"txt", "py"}, false);
+    QVERIFY(result.ok());
+    QCOMPARE(queries, 0);
+    QVERIFY(result.defaultExtensions.isEmpty());
+    QVERIFY(result.pendingDefaultExtensions.isEmpty());
+    QCOMPARE(store.value("Software/Classes/.txt/.").toString(), QString("Other.Text"));
+    QVERIFY(!store.contains("Software/Classes/.py/."));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Present"));
+}
+
+void FileAssociationsTest::windowsCleanupRestoresPreviousDefaults()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    store.setValue("Software/Classes/.txt/.", "Other.Text");
+    store.setValue("Software/Classes/.log/.", "");
+    Backend backend(windows(store));
+    const QStringList types{"txt", "log", "freshnote", "customnote"};
+    QCOMPARE(backend.apply(types, true).defaultExtensions.size(), 4);
+    // A repeated apply must not replace the original backup with our ProgID.
+    QCOMPARE(backend.apply(types, true).defaultExtensions.size(), 4);
+    QCOMPARE(store.value("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Value").toString(), QString("Other.Text"));
+    store.setValue("Software/Classes/.customnote/.", "Later.Editor");
+    QVERIFY(backend.removeOwnedRegistration().ok());
+    QCOMPARE(store.value("Software/Classes/.txt/.").toString(), QString("Other.Text"));
+    QVERIFY(store.contains("Software/Classes/.log/."));
+    QVERIFY(store.value("Software/Classes/.log/.").toString().isEmpty());
+    QVERIFY(!store.contains("Software/Classes/.freshnote/."));
+    QCOMPARE(store.value("Software/Classes/.customnote/.").toString(), QString("Later.Editor"));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Present"));
+}
+
+void FileAssociationsTest::windowsExistingApplicationDefaultIsRecognized()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    store.setValue("Software/Classes/.txt/.", "Other.Text");
+    auto services = windows(store);
+    services.queryDefaultProgId = [](const QString &) { return QStringLiteral("applications\\8bitpad.exe"); };
+    const auto result = Backend(services).apply({"txt"}, true);
+    QCOMPARE(result.defaultExtensions, QStringList{"txt"});
+    QVERIFY(result.pendingDefaultExtensions.isEmpty());
+    QCOMPARE(store.value("Software/Classes/.txt/.").toString(), QString("Other.Text"));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Present"));
+}
+
+void FileAssociationsTest::windowsIconsUseEmbeddedTypeResources()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    auto services = windows(store);
+    services.executable = QStringLiteral("C:/Users/Beri ö/8bitPad edition/8bitPad.exe");
+    const QString prefix = '"' + QDir::toNativeSeparators(services.executable) + "\",-";
+    const QStringList extensions{"txt", "log", "md", "sql", "pls", "json", "yaml", "py", "js", "ts", "cpp", "ps1", "sh", "customnote"};
+    const auto result = Backend(services).apply(extensions, false);
+    QVERIFY2(result.ok(), qPrintable(result.errors.join('\n')));
+    QSet<QString> references;
+    for (const auto &extension : extensions) {
+        const QString icon = store.value("Software/Classes/8bitPad." + extension + "/DefaultIcon/.").toString();
+        QCOMPARE(icon, prefix + QString::number(FileTypeIcons::forExtension(extension).resourceId));
+        references.insert(icon);
+        QVERIFY(!store.contains("Software/Classes/." + extension + "/DefaultIcon/."));
+    }
+    QVERIFY(references.size() >= 12);
+    QCOMPARE(FileTypeIcons::forExtension("SQL").resourceId, FileTypeIcons::forExtension("sql").resourceId);
+    QCOMPARE(FileTypeIcons::forExtension("unknown-custom").resourceId, FileTypeIcons::forExtension({}).resourceId);
+    QCOMPARE(store.value("Software/Classes/Applications/8bitPad.exe/DefaultIcon/.").toString(),
+        prefix + QString::number(FileTypeIcons::forExtension({}).resourceId));
+    QCOMPARE(store.value("Software/8bitPad/Capabilities/ApplicationIcon").toString(),
+        '"' + QDir::toNativeSeparators(services.executable) + QStringLiteral("\",0"));
+}
+
+void FileAssociationsTest::windowsIconRefreshPreservesDefaultsAndOtherCopies()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    auto services = windows(store);
+    Backend setup(services);
+    QVERIFY(setup.apply({"sql", "py", "customnote"}, false).ok());
+    const QString userChoice = "Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/.sql/UserChoice/";
+    store.setValue(userChoice + "ProgId", "Other.Editor");
+    store.setValue(userChoice + "Hash", "must-not-change");
+    store.setValue("Software/Classes/.sql/.", "Other.Editor");
+    store.setValue("Software/8bitPad/ShellIntegration/PreviousDefaults/sql/Value", "Original.Editor");
+    store.setValue("Software/Classes/8bitPad.sql/DefaultIcon/.", "old-app.exe,0");
+    store.remove("Software/Classes/8bitPad.py/DefaultIcon");
+    store.remove("Software/Classes/Applications/8bitPad.exe/DefaultIcon");
+    store.setValue("Software/Classes/8bitPad.py/shell/open/command/.",
+        windowsOpenCommand(services.executable.toUpper(), "%1"));
+    // Known legacy registrations can predate the manifest.
+    store.setValue("Software/Classes/8bitPad.md/shell/open/command/.", windowsOpenCommand(services.executable, "%1"));
+    store.setValue("Software/Classes/8bitPad.customnote/shell/open/command/.", "\"D:\\Portable\\8bitPad.exe\" \"%1\"");
+    store.setValue("Software/Classes/8bitPad.customnote/DefaultIcon/.", "portable-owned-icon");
+    QMap<QString, QVariant> before;
+    for (const auto &key : store.allKeys()) before.insert(key, store.value(key));
+    const QSet<QString> allowed{
+        "Software/Classes/8bitPad.sql/DefaultIcon/.", "Software/Classes/8bitPad.py/DefaultIcon/.",
+        "Software/Classes/8bitPad.md/DefaultIcon/.", "Software/Classes/Applications/8bitPad.exe/DefaultIcon/.",
+        "Software/8bitPad/Capabilities/ApplicationIcon", "Software/8bitPad/ShellIntegration/IconRevision"};
+    int notifications = 0;
+    services.associationsChanged = [&] { ++notifications; };
+    Backend backend(services);
+    const auto result = backend.refreshOwnedIcons();
+    QVERIFY(result.ok());
+    QCOMPARE(notifications, 1);
+    QVERIFY(result.defaultExtensions.isEmpty() && result.pendingDefaultExtensions.isEmpty());
+    QVERIFY(result.registeredExtensions.contains("md"));
+    QVERIFY(!result.registeredExtensions.contains("customnote"));
+    for (const auto &key : before.keys())
+        if (!allowed.contains(key)) QCOMPARE(store.value(key), before.value(key));
+    for (const auto &key : store.allKeys()) QVERIFY2(before.contains(key) || allowed.contains(key), qPrintable(key));
+    QVERIFY(store.value("Software/Classes/8bitPad.sql/DefaultIcon/.").toString().endsWith(
+        ",-" + QString::number(FileTypeIcons::forExtension("sql").resourceId)));
+    QVERIFY(store.contains("Software/Classes/8bitPad.py/DefaultIcon/."));
+    QVERIFY(store.contains("Software/Classes/Applications/8bitPad.exe/DefaultIcon/."));
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QCOMPARE(notifications, 1); // No cache flush on every launch.
+    store.setValue("Software/8bitPad/ShellIntegration/IconRevision", "previous-artwork");
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QCOMPARE(notifications, 2); // Same IDs, new artwork still invalidates the cache.
+
+    auto otherCopy = services;
+    otherCopy.executable = "E:/Unregistered portable/8bitPad.exe";
+    before.clear();
+    for (const auto &key : store.allKeys()) before.insert(key, store.value(key));
+    QVERIFY(Backend(otherCopy).refreshOwnedIcons().ok());
+    QCOMPARE(notifications, 2);
+    QCOMPARE(store.allKeys(), before.keys());
+    for (const auto &key : before.keys()) QCOMPARE(store.value(key), before.value(key));
+}
+
+void FileAssociationsTest::windowsIconRefreshHandlesGenericOpenWithAndEmptyRegistry()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    auto services = windows(store);
+    int notifications = 0;
+    services.associationsChanged = [&] { ++notifications; };
+    Backend backend(services);
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QVERIFY(store.allKeys().isEmpty());
+    QCOMPARE(notifications, 0);
+    store.setValue("Software/Classes/Applications/8bitPad.exe/shell/open/command/.", windowsOpenCommand(services.executable, "%1"));
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QVERIFY(backend.registeredExtensions().isEmpty());
+    QCOMPARE(store.allKeys().size(), 3); // Only the old command, icon and revision.
+    QVERIFY(store.contains("Software/Classes/Applications/8bitPad.exe/DefaultIcon/."));
+    QCOMPARE(notifications, 1);
+}
+
+void FileAssociationsTest::windowsNativeIconsCoverSharedApplicationAndSafeFallback()
+{
+    QTemporaryDir temp;
+    QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    auto services = windows(store);
+    services.nativeIconHandler = QFileInfo(services.executable).dir().filePath(
+        QString::fromLatin1(FileIconHandlerWindows::LibraryFileName));
+    const QString clsid = QString::fromLatin1(FileIconHandlerWindows::ClassIdString);
+    const QString com = "Software/Classes/CLSID/" + clsid;
+    const QString appIcon = "Software/Classes/Applications/8bitPad.exe/DefaultIcon/.";
+    const QString handlerKey = "Software/Classes/Applications/8bitPad.exe/shellex/IconHandler/.";
+    const QString protectedKey = "Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/.sql/UserChoice/";
+    store.setValue(protectedKey + "ProgId", "Applications\\8bitPad.exe");
+    store.setValue(protectedKey + "Hash", "preserve-windows-choice");
+    Backend backend(services);
+    QVERIFY(backend.apply({"sql", "py"}, true).ok());
+    QCOMPARE(store.value(appIcon).toString(), QString("%1"));
+    QCOMPARE(store.value(handlerKey).toString(), clsid);
+    QCOMPARE(store.value(com + "/InprocServer32/.").toString(), QDir::toNativeSeparators(services.nativeIconHandler));
+    QCOMPARE(store.value(com + "/InprocServer32/ThreadingModel").toString(), QString("Apartment"));
+    QCOMPARE(store.value(protectedKey + "Hash").toString(), QString("preserve-windows-choice"));
+    QVERIFY(store.value("Software/Classes/8bitPad.sql/DefaultIcon/.").toString().endsWith(
+        ",-" + QString::number(FileTypeIcons::forExtension("sql").resourceId)));
+
+    // A normal launch upgrades an old generic application record too.
+    store.remove("Software/Classes/Applications/8bitPad.exe/shellex/IconHandler");
+    store.setValue(appIcon, "old-app.exe,0");
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QCOMPARE(store.value(appIcon).toString(), QString("%1"));
+    QCOMPARE(store.value(handlerKey).toString(), clsid);
+
+    // Older portable inventories or a non-native CPU get a real static icon.
+    auto noHandler = services;
+    noHandler.nativeIconHandler.clear();
+    QVERIFY(Backend(noHandler).refreshOwnedIcons().ok());
+    QVERIFY(!store.contains(handlerKey));
+    QVERIFY(store.value(appIcon).toString().endsWith(
+        ",-" + QString::number(FileTypeIcons::forExtension({}).resourceId)));
+
+    // Startup maintenance cannot replace a separately installed icon provider.
+    store.setValue(handlerKey, "{OTHER-ICON-PROVIDER}");
+    store.setValue(appIcon, "foreign-icon.ico");
+    QVERIFY(backend.refreshOwnedIcons().ok());
+    QCOMPARE(store.value(handlerKey).toString(), QString("{OTHER-ICON-PROVIDER}"));
+    QCOMPARE(store.value(appIcon).toString(), QString("foreign-icon.ico"));
+    store.setValue("Software/Classes/CLSID/{OTHER-ICON-PROVIDER}/InprocServer32/.", "keep.dll");
+    QVERIFY(backend.removeOwnedRegistration().ok());
+    QVERIFY(!store.contains(com + "/InprocServer32/."));
+    QCOMPARE(store.value("Software/Classes/CLSID/{OTHER-ICON-PROVIDER}/InprocServer32/.").toString(), QString("keep.dll"));
+    QCOMPARE(store.value(protectedKey + "Hash").toString(), QString("preserve-windows-choice"));
 }
 
 void FileAssociationsTest::windowsContextToggleDoesNotChangeAssociations()
@@ -168,19 +388,22 @@ void FileAssociationsTest::windowsCleanupIncludesCustomAndPreservesSettings()
     QVERIFY(backend.registeredExtensions().isEmpty());
 }
 
-void FileAssociationsTest::windowsDefaultUiFailureIsReported()
+void FileAssociationsTest::windowsUnverifiedChangesAreRestored()
 {
     QTemporaryDir temp;
     QSettings store(temp.filePath("registry.ini"), QSettings::IniFormat);
+    store.setValue("Software/Classes/.txt/.", "Other.Text");
     auto services = windows(store);
-    int attempts = 0;
-    services.openDefaults = [&](const QUrl &) { ++attempts; return false; };
+    services.queryDefaultProgId = [](const QString &) { return QString(); };
     const auto result = Backend(services).apply({"txt", "py"}, true);
-    QVERIFY(!result.ok());
-    QCOMPARE(attempts, 2); // Specific page then generic fallback, not once per extension.
-    QVERIFY(!result.defaultsUiOpened);
+    QVERIFY(result.ok()); // Registration succeeded; defaults are explicitly pending.
     QCOMPARE(result.registeredExtensions.size(), 2);
-    QVERIFY(result.defaultMimeTypes.isEmpty());
+    QVERIFY(result.defaultExtensions.isEmpty());
+    QCOMPARE(result.pendingDefaultExtensions, QStringList({"txt", "py"}));
+    QCOMPARE(store.value("Software/Classes/.txt/.").toString(), QString("Other.Text"));
+    QVERIFY(!store.contains("Software/Classes/.py/."));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/txt/Present"));
+    QVERIFY(!store.contains("Software/8bitPad/ShellIntegration/PreviousDefaults/py/Present"));
 }
 
 void FileAssociationsTest::linuxDeduplicatesAndConfirmsMimeDefaults()

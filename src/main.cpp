@@ -73,12 +73,12 @@ int main(int argc, char *argv[])
     else {
         qInfo() << "Primary instance already running. PID:" << app.primaryPid();
 
-        app.sendInfoToPrimaryInstance();
+        const bool delivered = app.sendInfoToPrimaryInstance();
 
         qInfo() << "Secondary instance closing...";
 
         app.exit(0);
 
-        return 0;
+        return delivered ? 0 : 1;
     }
 }

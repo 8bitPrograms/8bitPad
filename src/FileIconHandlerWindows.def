@@ -1,0 +1,4 @@
+LIBRARY 8bitPadFileIcons
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

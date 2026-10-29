@@ -4,7 +4,6 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
-#include <QUrl>
 #include <functional>
 
 class QSettings;
@@ -19,9 +18,10 @@ struct ParsedExtensions {
 };
 struct BatchResult {
     QStringList registeredExtensions;
+    QStringList defaultExtensions;
+    QStringList pendingDefaultExtensions;
     QStringList defaultMimeTypes;
     QStringList errors;
-    bool defaultsUiOpened = false;
     bool ok() const { return errors.isEmpty(); }
 };
 
@@ -29,6 +29,9 @@ QList<Group> catalog();
 ParsedExtensions parseExtensions(const QString &text);
 QStringList registeredExtensions();
 BatchResult apply(const QStringList &extensions, bool requestDefaults = false);
+// Refresh only icons of existing Windows registrations for this executable.
+// Does not create associations, change defaults, or touch UserChoice.
+BatchResult refreshOwnedIcons();
 BatchResult removeOwnedRegistration();
 bool contextMenuInstalled();
 BatchResult setContextMenuEnabled(bool enabled);
@@ -45,12 +48,14 @@ struct CommandResult {
 struct Services {
     Platform platform = Platform::Linux;
     QString executable;
+    // Present only when the packaged icon handler matches native Explorer's CPU.
+    QString nativeIconHandler;
     QSettings *registry = nullptr; // HKCU root in production; temporary INI in tests.
     QString dataHome;
     QString configHome;
     std::function<QString(const QString &)> findExecutable;
     std::function<CommandResult(const QString &, const QStringList &)> run;
-    std::function<bool(const QUrl &)> openDefaults;
+    std::function<QString(const QString &)> queryDefaultProgId;
     std::function<void()> associationsChanged;
 };
 class Backend
@@ -59,6 +64,7 @@ public:
     explicit Backend(Services services);
     QStringList registeredExtensions() const;
     BatchResult apply(const QStringList &extensions, bool requestDefaults = false);
+    BatchResult refreshOwnedIcons();
     BatchResult removeOwnedRegistration();
     bool contextMenuInstalled() const;
     BatchResult setContextMenuEnabled(bool enabled);

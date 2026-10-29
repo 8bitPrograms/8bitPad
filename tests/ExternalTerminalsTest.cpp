@@ -72,6 +72,7 @@ private slots:
     void settingsRoundTripPreservesMissingSelection();
     void argumentLinesStayLiteral();
     void launchArgumentsDoNotInterpretFolder();
+    void custom8bitShellReceivesExplicitDirectory();
     void windowsTerminalUsesFixedRelativeDirectory();
     void consoleFlagAndCustomChoice();
     void invalidPathsAndBatchFilesAreRejected();
@@ -129,6 +130,32 @@ void ExternalTerminalsTest::launchArgumentsDoNotInterpretFolder()
     QCOMPARE(spec.arguments, QStringList({"--directory", QDir::toNativeSeparators(folder),
                                          "prefix=" + QDir::toNativeSeparators(folder), "literal ; & $(x)"}));
     QVERIFY(!spec.newConsole);
+}
+
+void ExternalTerminalsTest::custom8bitShellReceivesExplicitDirectory()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+#ifdef Q_OS_WIN
+    const QString shell = temp.filePath("8bitShell.exe");
+#else
+    const QString shell = temp.filePath("8bitShell");
+#endif
+    QVERIFY(QFile::copy(executable(), shell));
+    const QString folder = temp.filePath("selected \u00f6 \u0131 ; & % $ ( ) ! [ ]");
+    QVERIFY(QDir().mkdir(folder));
+    Settings settings;
+    settings.terminalId = "custom";
+    settings.customProgram = shell;
+    const auto spec = buildLaunch(terminalForSettings(settings, {}), folder);
+    QVERIFY2(spec.valid(), qPrintable(spec.error));
+    QCOMPARE(spec.arguments, QStringList({"--working-directory", QDir::toNativeSeparators(folder)}));
+    QCOMPARE(spec.workingDirectory, folder);
+    // Explicit custom options remain literal and under the user's control.
+    settings.customArguments = {"--working-directory", "{folder}", "--title", "my terminal"};
+    const auto configured = buildLaunch(terminalForSettings(settings, {}), folder);
+    QCOMPARE(configured.arguments, QStringList({"--working-directory", QDir::toNativeSeparators(folder),
+                                                "--title", "my terminal"}));
 }
 
 void ExternalTerminalsTest::windowsTerminalUsesFixedRelativeDirectory()

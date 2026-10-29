@@ -32,6 +32,7 @@
 #include <QSignalBlocker>
 #include <QFontMetrics>
 #include <QScrollArea>
+#include <QPushButton>
 #include <algorithm>
 
 
@@ -55,6 +56,21 @@ PreferencesDialog::PreferencesDialog(ApplicationSettings *settings, QWidget *par
     });
     setupCategoryNavigation();
     populateThemeComboBox();
+    auto *version = new QPushButton(tr("8bitPad %1").arg(QCoreApplication::applicationVersion()), this);
+    version->setObjectName(QStringLiteral("applicationVersionButton"));
+    version->setFlat(true);
+    version->setAccessibleName(tr("Application version"));
+    ui->preferencesFooter->insertWidget(0, version);
+    auto *bonusHint = new QLabel(tr("Blueberi, Raspberi, Silverhand, V and K unlocked."), this);
+    bonusHint->setObjectName(QStringLiteral("bonusThemesHint"));
+    bonusHint->setVisible(false);
+    ui->preferencesLayout->insertWidget(ui->preferencesLayout->count() - 1, bonusHint);
+    if (auto *app = qobject_cast<NotepadNextApplication *>(qApp)) {
+        const QPointer<ThemeManager> themes(app->getThemeManager());
+        connect(version, &QPushButton::clicked, this, [themes, bonusHint] {
+            if (themes && themes->registerVersionTap()) bonusHint->show();
+        });
+    }
 
     ui->labelAppRestartIcon->hide();
     ui->labelAppRestart->hide();
@@ -90,9 +106,14 @@ PreferencesDialog::PreferencesDialog(ApplicationSettings *settings, QWidget *par
 
     ui->fcbDefaultFont->setCurrentFont(QFont(settings->fontName()));
     connect(ui->fcbDefaultFont, &QFontComboBox::currentFontChanged, this, [=, this](const QFont &f) {
-        settings->setFontName(f.family());
+        if (settings->fontName() != f.family())
+            settings->setFontName(f.family());
     });
     connect(settings, &ApplicationSettings::fontNameChanged, this, [=, this](QString fontName){
+        // QFontComboBox may substitute/normalize the requested family. A
+        // settings refresh must not write that substitute back into settings
+        // and synchronously trigger another refresh.
+        const QSignalBlocker blocker(ui->fcbDefaultFont);
         ui->fcbDefaultFont->setCurrentFont(QFont(fontName));
     });
 
@@ -286,19 +307,29 @@ void PreferencesDialog::populateThemeComboBox()
         ui->comboBoxTheme->setEnabled(false);
         return;
     }
-    for (const auto &theme : ThemeManager::catalog())
-        ui->comboBoxTheme->addItem(theme.name, theme.id);
-    ui->comboBoxTheme->setCurrentIndex(ui->comboBoxTheme->findData(themes->currentThemeId()));
+    refreshThemeChoices();
+    connect(themes, &ThemeManager::bonusThemesUnlockedChanged, this, &PreferencesDialog::refreshThemeChoices);
     const QPointer<ThemeManager> guardedThemes(themes);
     connect(ui->comboBoxTheme, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, guardedThemes](int index) {
         if (index >= 0 && guardedThemes)
             guardedThemes->setTheme(ui->comboBoxTheme->itemData(index).toString());
     });
-    connect(themes, &ThemeManager::themeChanged, this, [this](const QString &id) {
-        const QSignalBlocker blocker(ui->comboBoxTheme);
-        ui->comboBoxTheme->setCurrentIndex(ui->comboBoxTheme->findData(id));
+    connect(themes, &ThemeManager::themeChanged, this, [this](const QString &) {
+        refreshThemeChoices();
         refreshPreferencesIcons();
     });
+}
+
+void PreferencesDialog::refreshThemeChoices()
+{
+    auto *app = qobject_cast<NotepadNextApplication *>(qApp);
+    auto *themes = app ? app->getThemeManager() : nullptr;
+    if (!themes) return;
+    const QSignalBlocker blocker(ui->comboBoxTheme);
+    ui->comboBoxTheme->clear();
+    for (const auto &theme : themes->availableThemes())
+        ui->comboBoxTheme->addItem(theme.name, theme.id);
+    ui->comboBoxTheme->setCurrentIndex(ui->comboBoxTheme->findData(themes->currentThemeId()));
 }
 
 void PreferencesDialog::refreshPreferencesIcons()

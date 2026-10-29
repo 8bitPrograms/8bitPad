@@ -1,5 +1,8 @@
 # Windows build
 
+For the full local workflow, test reports, portable launch and Open Shell checks,
+see [Building.md](Building.md).
+
 From a native Windows shell in the source directory:
 
 ```powershell

@@ -1,5 +1,8 @@
 # Building 8bitPad on Linux
 
+For the full local workflow, test reports, portable launch and Open Shell checks,
+see [Building.md](Building.md).
+
 The native Linux build uses a C++20 compiler, CMake 3.21 or newer, Ninja, and Qt
 6.5 or newer. Qt Core, Gui, Widgets, Network, PrintSupport, Core5Compat,
 Concurrent, Svg, Test and LinguistTools are required. The docking library also
@@ -24,7 +27,11 @@ sudo apt install build-essential cmake ninja-build git \
 From the source root:
 
 ```bash
-bash scripts/build-linux.sh
+bash scripts/build-linux.sh \
+  -DCPM_ads_SOURCE="$PWD/dependency-sources/ads" \
+  -DCPM_SingleApplication_SOURCE="$PWD/dependency-sources/singleapplication" \
+  -DCPM_editorconfig_core_qt_SOURCE="$PWD/dependency-sources/editorconfig-core-qt" \
+  -DFETCHCONTENT_FULLY_DISCONNECTED=ON
 ./build-linux/src/8bitPad
 ```
 
@@ -32,8 +39,8 @@ The script builds and runs the Qt tests with the offscreen platform. It accepts
 additional CMake configuration arguments and honors `BIT8PAD_BUILD_DIR`,
 `CMAKE_PREFIX_PATH` and `CMAKE_BUILD_PARALLEL_LEVEL`.
 
-The first configuration normally fetches the three pinned CMake dependencies.
-An offline build can reuse existing dependency directories:
+The command above uses the three included pinned dependency sources without
+network downloads. You can also provide other existing dependency directories:
 
 ```bash
 bash scripts/build-linux.sh \

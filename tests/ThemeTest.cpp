@@ -28,6 +28,7 @@
 #include <QJsonObject>
 #include <QKeyEvent>
 #include <QPointer>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QTimer>
 
@@ -78,11 +79,34 @@ QJsonArray runThemeChecks(NotepadNextApplication *app, MainWindow *window)
                 ThemeManager fresh(&isolated, app->getLuaState(), app->getEditorManager());
                 check("theme-fresh-profile-is-classic-white", fresh.currentThemeId() == "classic-light" &&
                       !fresh.currentTheme().isDark && fresh.currentTheme().background == QColor(Qt::white));
+                check("theme-bonus-locked-by-default", !fresh.bonusThemesUnlocked() && fresh.availableThemes().size() == ThemeManager::catalog().size() - 5);
+                for (int tap = 0; tap < 6; ++tap) fresh.registerVersionTap();
+                check("theme-six-taps-do-not-unlock", !fresh.bonusThemesUnlocked());
+                QEventLoop pause;
+                QTimer::singleShot(1600, &pause, &QEventLoop::quit);
+                pause.exec();
+                fresh.registerVersionTap();
+                check("theme-slow-taps-reset-sequence", !fresh.bonusThemesUnlocked());
+                for (int tap = 0; tap < 6; ++tap) fresh.registerVersionTap();
+                check("theme-seven-taps-unlock", fresh.bonusThemesUnlocked() && fresh.availableThemes().size() == ThemeManager::catalog().size());
+                check("theme-unlock-does-not-repeat", !fresh.registerVersionTap());
             }
             isolated.setValue("appearance/theme", "ayu-dark");
             {
                 ThemeManager saved(&isolated, app->getLuaState(), app->getEditorManager());
                 check("theme-explicit-saved-choice-preserved", saved.currentThemeId() == "ayu-dark");
+                check("theme-bonus-unlock-persists", saved.bonusThemesUnlocked());
+            }
+            isolated.setValue("appearance/bonusThemesUnlocked", false);
+            for (const auto &bonus : ThemeManager::catalog()) {
+                if (!ThemeManager::isBonusTheme(bonus.id)) continue;
+                isolated.setValue("appearance/theme", bonus.id);
+                ThemeManager migrated(&isolated, app->getLuaState(), app->getEditorManager());
+                bool hidden = true;
+                for (const auto &available : migrated.availableThemes())
+                    hidden &= !ThemeManager::isBonusTheme(available.id);
+                check("theme-locked-saved-choice-stays-hidden-" + bonus.id, hidden &&
+                    !migrated.bonusThemesUnlocked() && migrated.currentThemeId() == bonus.id);
             }
             isolated.setValue("appearance/theme", "missing-theme");
             {
@@ -128,6 +152,17 @@ QJsonArray runThemeChecks(NotepadNextApplication *app, MainWindow *window)
 
     for (const auto &theme : ThemeManager::catalog()) {
         const QString prefix = QStringLiteral("theme-colors-") + theme.id + QLatin1Char('-');
+        if (theme.id.startsWith("cyberpunk-")) {
+            QSet<QRgb> distinct;
+            bool readable = true;
+            for (const QColor &color : {theme.comment, theme.keyword, theme.string, theme.number,
+                                       theme.function, theme.type, theme.error}) {
+                distinct.insert(color.rgb());
+                readable &= contrastRatio(color, theme.background) >= 4.5;
+            }
+            check(prefix + "distinct-syntax-roles", distinct.size() == 7);
+            check(prefix + "readable-syntax-roles", readable);
+        }
         const auto ink = [&theme](const QColor &color) { return liftContrast(color, theme.background, 4.5); };
         check(prefix + QStringLiteral("switch"), themes->setTheme(theme.id));
         token(first, cpp, "comment", ink(theme.comment), prefix + QStringLiteral("cpp-comment"));

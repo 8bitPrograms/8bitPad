@@ -48,8 +48,11 @@ __cmake_systeminformation
 
 *.pyc
 
-/build
-/build*
+# Generated CMake build trees (directories only).
+/build*/
+/cmake-build-*/
+/out/
+/CMakeFiles/
 /icon/ImageMagick
 
 # JetBrains IDE prefs
@@ -68,7 +71,7 @@ __cmake_systeminformation
 .ninja_log
 build.ninja
 
-# Keep reproducible build helpers despite the broad upstream build-* rule.
+# Keep reproducible build helpers tracked.
 !scripts/build-windows.ps1
 !scripts/build-linux.sh
 /dist/
