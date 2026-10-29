@@ -27,9 +27,11 @@ env:
   PYTHONUTF8: '1'
 permissions:
   contents: read
+# Pull requests replace their previous run. Push and tag runs are left to
+# finish: cancelling them dropped the macOS Qt cache before it could be saved.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   plan:
     runs-on: ubuntu-22.04
@@ -49,6 +51,9 @@ jobs:
   native:
     needs: plan
     name: ${{ matrix.os }} / ${{ matrix.arch }}
+    # Dependabot github-actions updates do not need a Qt SDK. Keeping them off
+    # the shared macOS runners leaves those machines for main and release builds.
+    if: ${{ !(matrix.os == 'macos' && github.actor == 'dependabot[bot]') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.native) }}
@@ -108,13 +113,19 @@ jobs:
           path: |
             tooling/qt-sdk-${{ matrix.arch }}
             tooling/qt-sources
-          key: qt-source-6.11.2-r2-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('scripts/ci/build-qt.py') }}
+          key: ${{ matrix.os == 'macos' && format('qt-official-r1-{0}', hashFiles('scripts/ci/install-qt-macos.py', 'packaging/release.json')) || format('qt-source-6.11.2-r2-{0}-{1}-{2}', runner.os, matrix.arch, hashFiles('scripts/ci/build-qt.py')) }}
       - name: Build native Qt SDK on Windows
         if: matrix.os == 'windows'
         shell: powershell
         run: .\scripts\ci\run-windows.ps1 -Architecture $env:RELEASE_ARCH -SdkOnly
+      - name: Install official Qt SDK on macOS
+        if: matrix.os == 'macos'
+        run: |
+          prefix="tooling/qt-sdk-$RELEASE_ARCH"
+          if [ ! -f "$prefix/.8bit-sdk.json" ]; then python -m pip install 'aqtinstall==3.3.0'; fi
+          python scripts/ci/install-qt-macos.py --prefix "$prefix"
       - name: Build native Qt SDK on Unix
-        if: matrix.os != 'windows'
+        if: matrix.os == 'linux'
         run: |
           mkdir -p build
           set +e
@@ -161,7 +172,9 @@ jobs:
         run: |
           args=()
           if [ "$BUILD_PACKAGES" != true ]; then args+=(--build-only); fi
-          python scripts/ci/build.py --qt-root "tooling/qt-sdk-$RELEASE_ARCH" --jobs 2 "${args[@]}"
+          jobs=2
+          if [ "$(uname -s)" = Darwin ]; then jobs=$(sysctl -n hw.ncpu); fi
+          python scripts/ci/build.py --qt-root "tooling/qt-sdk-$RELEASE_ARCH" --jobs "$jobs" "${args[@]}"
       - name: Test Linux bundle on supported distribution families without a Qt SDK
         if: matrix.os == 'linux' && github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.packages)
         run: bash scripts/ci/smoke-distros.sh

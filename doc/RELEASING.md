@@ -22,13 +22,13 @@ The ordinary release requires all six standard targets. Enable experimental 32-b
 
 ## Runtime policy
 
-Qt 6.11.2 is built from versioned official source archives with their official SHA256 sidecars. Each native job caches a matching SDK; there is no dependence on a developer's local Qt path. A private workstation SDK stays outside the hosted build.
+Linux and Windows build Qt 6.11.2 from versioned official source archives with their official SHA256 sidecars. Hosted macOS jobs install the matching official universal desktop SDK (Qt's `clang_64` macOS package, via aqtinstall 3.3.0) and cache it. Compiling Qt on the hosted macOS runners took long enough that later pushes cancelled the job before its cache could be saved. A private workstation SDK stays outside the hosted build.
 
 Windows packages carry their Qt DLLs, plugins and app-local redistributable MSVC runtime. Pad carries its editor runtime and opens external terminals only when the user requests one; a separate terminal is not an application startup dependency.
 
 Linux packages carry Qt, QML where applicable, plugins, fonts, OpenSSL and other linked non-system libraries. Runtime dependency discovery rejects unresolved ELF libraries, sets relative paths, and excludes glibc/its loader. X11/Wayland services, kernel interfaces, hardware graphics drivers and a supported glibc remain properties of the operating system. Bundling these would not make an arbitrary old/minimal/non-graphical OS a compatible desktop.
 
-macOS packages carry a native APP and its Qt frameworks/plugins. Homebrew, Qt, Python and a compiler are build-machine tools; users do not need them to run a package.
+macOS packages carry a native APP and its Qt frameworks/plugins from that official SDK, plus the license notices from the matching Qt module tags. The application itself is still compiled on the native Intel or Apple Silicon runner. Homebrew, Qt, Python and a compiler are build-machine tools; users do not need them to run a package.
 
 The package smoke tests clear SDK/library environment paths. Linux also starts the archive in Ubuntu, Debian and Fedora containers with no Qt SDK installed; x64 adds Arch. These are offscreen startup/application checks. They do not replace interactive desktop or installer lifecycle testing.
 
