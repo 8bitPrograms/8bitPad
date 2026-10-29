@@ -47,13 +47,13 @@ jobs:
       - id: matrix
         env:
           BUILD_TARGET: ${{ inputs.target || 'all' }}
+          # Dependabot github-actions updates do not need a Qt SDK. Keeping them
+          # off the shared macOS runners leaves those machines for main and release builds.
+          SKIP_MACOS: ${{ github.actor == 'dependabot[bot]' }}
         run: python scripts/ci/matrix.py
   native:
     needs: plan
     name: ${{ matrix.os }} / ${{ matrix.arch }}
-    # Dependabot github-actions updates do not need a Qt SDK. Keeping them off
-    # the shared macOS runners leaves those machines for main and release builds.
-    if: ${{ !(matrix.os == 'macos' && github.actor == 'dependabot[bot]') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.native) }}
