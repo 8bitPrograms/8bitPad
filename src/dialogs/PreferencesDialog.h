@@ -56,6 +56,7 @@ private:
     void populateTranslationComboBox();
     void setupCategoryNavigation();
     void populateThemeComboBox();
+    void refreshThemeChoices();
     void refreshPreferencesIcons();
     void ensureTerminalPreferences();
 };

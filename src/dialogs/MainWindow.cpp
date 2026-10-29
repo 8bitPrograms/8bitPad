@@ -54,6 +54,7 @@
 
 #include "NotepadNextApplication.h"
 #include "ApplicationSettings.h"
+#include "update/PadUpdates.h"
 #include "ThemeManager.h"
 #include "BitPadFeatures.h"
 #include "LanguageMenu.h"
@@ -114,6 +115,8 @@ MainWindow::MainWindow(NotepadNextApplication *app) :
     setAttribute(Qt::WA_DeleteOnClose);
 
     ui->setupUi(this);
+    setupPadUpdates(this, ui->menuHelp, QDir(ApplicationSettings::profileDirectory()).filePath("updates.ini"),
+        !QCoreApplication::arguments().contains("--smoke-test"));
 
     applyCustomShortcuts();
 

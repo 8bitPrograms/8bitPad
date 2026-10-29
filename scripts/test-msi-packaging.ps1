@@ -47,6 +47,7 @@ $bytes[0x80] = 0x50; $bytes[0x81] = 0x45; $bytes[0x84] = 0x64; $bytes[0x85] = 0x
 foreach ($relative in @('Qt6Core.dll', 'Qt6Core5Compat.dll', 'Qt6Gui.dll', 'Qt6Widgets.dll', 'Qt6Network.dll', 'platforms/qwindows.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'qt.conf', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/Qt.txt', 'theme-licenses/ayu.txt', $unicodeDoc, 'Start-Portable.cmd', 'profile/session.json')) {
     Write-Text (Join-Path $package $relative) ('fixture ' + $relative)
 }
+Write-Text (Join-Path $package '8bitPadFileIcons.dll') 'native icon handler fixture'
 Update-Manifest $package
 $first = & $packageScript -PackageDirectory $package -OutputMsi (Join-Path $OutputDirectory '8bitPad-0.1.0-windows-x64.msi') -Version 0.1.0 -GenerateOnly
 $manifest = Get-Content -LiteralPath (Join-Path $first.WorkDirectory 'payload.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -58,7 +59,9 @@ $pns = New-Object Xml.XmlNamespaceManager($productXml.NameTable)
 $pns.AddNamespace('w', 'http://schemas.microsoft.com/wix/2006/wi')
 $paths = @($manifest.files | ForEach-Object { $_.path })
 Assert ($first.GeneratedOnly -and !(Test-Path -LiteralPath $first.OutputMsi)) 'GenerateOnly never creates or installs an MSI'
-Assert ($paths.Count -eq 16) 'Complete fixture runtime, plugins and license payload is included'
+Assert ($paths.Count -eq 17) 'Complete fixture runtime, native icons, plugins and license payload is included'
+Assert ($paths -contains '8bitPadFileIcons.dll') 'Native Explorer icon handler is included'
+Assert ($null -ne $productXml.SelectSingleNode('//w:Component[@Id="PadFileIconHandler"]/w:RegistryValue[@KeyPath="yes"][@Value="[INSTALLFOLDER]8bitPadFileIcons.dll"]', $pns)) 'MSI owns native icon server registration and removal'
 Assert (!(@($paths | Where-Object { $_ -like 'profile/*' -or $_ -in 'Start-Portable.cmd','SHA256SUMS.txt' }).Count)) 'Portable launcher, profile and old checksum manifest are excluded'
 Assert ($paths -contains $unicodeDoc) 'Spaces, XML metacharacters and Unicode file paths survive authoring'
 $pkg = $productXml.SelectSingleNode('//w:Package', $pns)
@@ -71,7 +74,7 @@ Assert ($null -ne $productXml.SelectSingleNode('//w:Shortcut[@Id="BitPadUninstal
 Assert ($productXml.SelectSingleNode('//w:Product', $pns).Manufacturer -eq '8bitPrograms') 'Installed apps lists the 8bitPrograms publisher'
 Assert ($productXml.SelectSingleNode('//w:MajorUpgrade', $pns).Schedule -eq 'afterInstallInitialize') 'Major upgrade removal is inside MSI rollback transaction'
 $components = @($payloadXml.SelectNodes('//w:Component', $ns)) + @($productXml.SelectNodes('//w:Component', $pns))
-Assert (@($components | Where-Object { $_.Win64 -ne 'yes' -or $_.RegistryValue.Root -ne 'HKCU' -or $_.RegistryValue.KeyPath -ne 'yes' }).Count -eq 0) 'Every component is x64 with a per-user HKCU key path'
+Assert (@($components | Where-Object { $_.Win64 -ne 'yes' -or $_.SelectNodes('w:RegistryValue[@Root="HKCU"][@KeyPath="yes"]', $pns).Count -ne 1 -or $_.SelectNodes('w:RegistryValue[@Root!="HKCU"]', $pns).Count -ne 0 }).Count -eq 0) 'Every component is x64 with a per-user HKCU key path'
 Assert ($payloadXml.SelectNodes('//w:RemoveFile | //w:RemoveRegistryKey | //w:CustomAction', $ns).Count -eq 0 -and $productXml.SelectNodes('//w:CustomAction | //w:RemoveRegistryKey | //w:RemoveFile | //w:ProgId | //w:Extension', $pns).Count -eq 0) 'No recursive deletion, executable custom actions or association changes'
 Assert ($productXml.SelectNodes('//w:Property[@Id="ALLUSERS"] | //w:Publish[@Event="DoAction"]', $pns).Count -eq 0) 'No machine scope or auto-launch authoring'
 Assert ($null -ne $productXml.SelectSingleNode('//w:Property[@Id="MSIDISABLERMRESTART"][@Value="1"]', $pns)) 'Restart Manager cannot relaunch the app after upgrade'
@@ -103,7 +106,7 @@ if ($WixRoot) {
     $built = & $packageScript -PackageDirectory $package -OutputMsi (Join-Path $OutputDirectory 'tool quoting & test/fixture.msi') -Version 0.1.0 -WixRoot $WixRoot
     Assert (!$built.GeneratedOnly -and (Test-Path -LiteralPath $built.OutputMsi -PathType Leaf)) 'Native WiX invocation supports spaces, ampersands and Unicode paths'
     $validation = & (Join-Path $PSScriptRoot 'validate-msi.ps1') -Msi $built.OutputMsi -PayloadManifest (Join-Path $built.WorkDirectory 'payload.json') -WixRoot $WixRoot -OutputDirectory (Join-Path $OutputDirectory 'fixture-validation')
-    Assert ($validation.FileCount -eq 16 -and $validation.Passed -ge 28) 'Built fixture MSI passes native table and extracted-byte validation'
+    Assert ($validation.FileCount -eq 17 -and $validation.Passed -ge 28) 'Built fixture MSI passes native table and extracted-byte validation'
 }
 [pscustomobject]@{ passed=$script:checks.Count; checks=$script:checks; output=$OutputDirectory } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'results.json') -Encoding UTF8
 Write-Output "MSI structural tests passed: $($script:checks.Count). Results: $OutputDirectory"

@@ -5,6 +5,11 @@ qt_add_executable(EditorCoreTest
     ../src/ScintillaCommenter.cpp ../src/SelectionTracker.cpp
     ../src/RangeAllocator.cpp ../src/UndoAction.cpp
 )
+qt_add_executable(UpdateClientTest UpdateClientTest.cpp)
+target_link_libraries(UpdateClientTest PRIVATE bit8_updates Qt6::Test)
+set_target_properties(UpdateClientTest PROPERTIES WIN32_EXECUTABLE FALSE)
+add_test(NAME UpdateClient COMMAND UpdateClientTest -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/updates.xml,junitxml")
+set_tests_properties(UpdateClient PROPERTIES TIMEOUT 30)
 target_include_directories(EditorCoreTest PRIVATE ../src)
 target_link_libraries(EditorCoreTest PRIVATE scintilla uchardet Qt6::Test)
 add_test(NAME EditorCore COMMAND EditorCoreTest -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/editor-core.xml,junitxml")
@@ -37,7 +42,7 @@ qt_add_executable(EditorExtrasTest
 target_include_directories(EditorExtrasTest PRIVATE ../src)
 target_link_libraries(EditorExtrasTest PRIVATE Qt6::Widgets Qt6::Test)
 if(WIN32)
-    target_link_libraries(EditorExtrasTest PRIVATE ole32 uuid)
+    target_link_libraries(EditorExtrasTest PRIVATE ole32 uuid shlwapi)
 endif()
 target_compile_definitions(EditorExtrasTest PRIVATE "BIT8PAD_SOURCE_DIR=\"${BIT8PAD_SOURCE_FWD}\"")
 add_test(NAME EditorExtras COMMAND EditorExtrasTest -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/editor-extras.xml,junitxml")
@@ -114,7 +119,43 @@ target_include_directories(FileAssociationsDialogTest PRIVATE ../src)
 target_link_libraries(FileAssociationsDialogTest PRIVATE Qt6::Widgets Qt6::Test)
 
 foreach(association_test FileAssociationsTest FileAssociationsDialogTest)
+    if(WIN32)
+        target_link_libraries(${association_test} PRIVATE shlwapi)
+    endif()
     set_target_properties(${association_test} PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME ${association_test} COMMAND ${association_test} -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/${association_test}.xml,junitxml")
     set_tests_properties(${association_test} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
 endforeach()
+
+if(WIN32)
+    qt_add_executable(WindowsFileIconHandlerTest WindowsFileIconHandlerTest.cpp)
+    target_include_directories(WindowsFileIconHandlerTest PRIVATE ../src)
+    target_link_libraries(WindowsFileIconHandlerTest PRIVATE Qt6::Core Qt6::Test ole32 uuid)
+    target_compile_definitions(WindowsFileIconHandlerTest PRIVATE
+        "BIT8PAD_ICON_HANDLER_DLL=\"$<TARGET_FILE:BitPadFileIcons>\"")
+    set_target_properties(WindowsFileIconHandlerTest PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_dependencies(WindowsFileIconHandlerTest BitPadFileIcons)
+    add_test(NAME WindowsFileIconHandler COMMAND WindowsFileIconHandlerTest
+        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/windows-file-icon-handler.xml,junitxml")
+    set_tests_properties(WindowsFileIconHandler PROPERTIES TIMEOUT 30)
+
+    qt_add_executable(WindowsFileIconResourceTest WindowsFileIconResourceTest.cpp)
+    target_include_directories(WindowsFileIconResourceTest PRIVATE ../src)
+    target_link_libraries(WindowsFileIconResourceTest PRIVATE Qt6::Gui Qt6::Test shell32 user32 gdi32)
+    target_compile_definitions(WindowsFileIconResourceTest PRIVATE
+        "BIT8PAD_TEST_EXECUTABLE=\"$<TARGET_FILE:NotepadNext>\""
+        "BIT8PAD_SOURCE_DIR=\"${BIT8PAD_SOURCE_FWD}\"")
+    set_target_properties(WindowsFileIconResourceTest PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_dependencies(WindowsFileIconResourceTest NotepadNext)
+    add_test(NAME WindowsFileIconResources COMMAND WindowsFileIconResourceTest
+        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/windows-file-icons.xml,junitxml")
+    set_tests_properties(WindowsFileIconResources PROPERTIES TIMEOUT 30)
+
+    qt_add_executable(CommandLauncherTest CommandLauncherTest.cpp)
+    target_link_libraries(CommandLauncherTest PRIVATE Qt6::Core Qt6::Test)
+    set_target_properties(CommandLauncherTest PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_dependencies(CommandLauncherTest BitPadCommand)
+    add_test(NAME CommandLauncher COMMAND CommandLauncherTest
+        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/command-launcher.xml,junitxml")
+    set_tests_properties(CommandLauncher PROPERTIES TIMEOUT 30)
+endif()

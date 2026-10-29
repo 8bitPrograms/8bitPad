@@ -1,6 +1,7 @@
 qt_add_executable(NotepadNext
 	WIN32
 	MACOSX_BUNDLE
+    update/PadUpdates.h update/PadUpdates.cpp
 	ActionUtils.h
     ThemeManager.h ThemeManager.cpp
     Readability.h Readability.cpp
@@ -219,6 +220,20 @@ qt_add_executable(NotepadNext
 
 )
 
+if(WIN32)
+    add_executable(BitPadCommand WIN32 CommandLauncherWindows.cpp)
+    set_target_properties(BitPadCommand PROPERTIES OUTPUT_NAME 8p
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+    add_library(BitPadFileIcons SHARED FileIconHandlerWindows.cpp
+        FileIconHandlerWindows.h FileTypeIconMapWindows.h FileIconHandlerWindows.def)
+    target_link_libraries(BitPadFileIcons PRIVATE ole32 uuid)
+    set_target_properties(BitPadFileIcons PROPERTIES OUTPUT_NAME 8bitPadFileIcons
+        PREFIX "" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+        AUTOMOC OFF AUTOUIC OFF AUTORCC OFF
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    add_dependencies(NotepadNext BitPadFileIcons)
+endif()
+
 set_target_properties(NotepadNext PROPERTIES
     OUTPUT_NAME 8bitPad
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/deploy/macos/info.plist
@@ -259,18 +274,35 @@ if(WIN32)
 	)
 	target_sources(NotepadNext PRIVATE "${CMAKE_BINARY_DIR}/version.rc")
 	configure_file(
+		"${CMAKE_SOURCE_DIR}/deploy/windows/filetypes.rc.in"
+		"${CMAKE_BINARY_DIR}/filetypes.rc"
+		@ONLY
+	)
+	configure_file(
 		"${CMAKE_SOURCE_DIR}/icon/8bitPad.ico"
 		"${CMAKE_BINARY_DIR}/8bitPad.ico"
 		COPYONLY
 	)
+    # RC's ICON directive is not picked up by Ninja's C/C++ dependency scan.
+    # An updated ICO must rebuild the EXE resource even when version.rc is unchanged.
+    set_property(SOURCE "${CMAKE_BINARY_DIR}/version.rc" APPEND PROPERTY
+        OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/8bitPad.ico")
+    # File associations reference these stable negative resource IDs in the EXE.
+    # Embedding keeps installed and portable icons independent of external paths.
+    file(GLOB BIT8PAD_FILE_TYPE_ICONS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/icon/filetypes/*.ico")
+    # Keep all ICON directives in one resource-compiler invocation: each RC
+    # input otherwise starts its generated RT_ICON image IDs at 1 again.
+    set_property(SOURCE "${CMAKE_BINARY_DIR}/version.rc" APPEND PROPERTY
+        OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/filetypes.rc;${BIT8PAD_FILE_TYPE_ICONS}")
 endif()
 
 if(WIN32)
-    target_link_libraries(NotepadNext PRIVATE ole32 uuid)
+    target_link_libraries(NotepadNext PRIVATE ole32 uuid shlwapi)
 endif()
 
 target_link_libraries(NotepadNext
     PRIVATE
+        bit8_updates
         Qt6::Concurrent
         Qt6::Svg
         Qt6::Core

@@ -31,6 +31,9 @@ Every upstream project listed below uses the MIT license.
 
 Classic Light is an original neutral white palette licensed under GPL-3.0-or-later.
 
+Silverhand, V and K are original 8bitPrograms editor palettes inspired by the
+yellow, red and cyan colors of Cyberpunk 2077. They use no game artwork or fonts.
+
 Blueberi and Raspberi are 8bitPad's independently mapped versions of the user's
 existing custom palette preferences; these new mappings are GPL-3.0-or-later.
 Theme names identify palette compatibility and do not imply endorsement by the

@@ -1,6 +1,8 @@
 #include <windows.h>
 
+#define IDI_APP_ICON 1
 IDI_APP_ICON ICON "8bitPad.ico"
+#include "filetypes.rc"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,0,0

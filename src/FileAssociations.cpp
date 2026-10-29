@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "FileAssociations.h"
+#include "FileTypeIcons.h"
+#include "FileIconHandlerWindows.h"
 #include "ShellIntegration.h"
 
 #include <QCoreApplication>
-#include <QDesktopServices>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -21,6 +22,8 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <memory>
+#include <string>
+#include <utility>
 
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -28,6 +31,7 @@
 #endif
 #include <windows.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #endif
 
 namespace {
@@ -38,6 +42,39 @@ const QString registeredAppKey = QStringLiteral("Software/RegisteredApplications
 const QString capabilitiesValue = QStringLiteral("Software\\8bitPad\\Capabilities");
 const QString desktopId = QStringLiteral("8bitpad.desktop");
 const QString folderDesktopId = QStringLiteral("8bitpad-folder.desktop");
+const QString iconRevisionKey = QStringLiteral("Software/8bitPad/ShellIntegration/IconRevision");
+const QString iconHandlerClass = QString::fromLatin1(FileIconHandlerWindows::ClassIdString);
+const QString iconHandlerComKey = classes + "CLSID/" + iconHandlerClass;
+const QString applicationIconHandlerKey = classes + "Applications/8bitPad.exe/shellex/IconHandler/.";
+
+QString iconReference(const QString &executable, int resourceId)
+{
+    // Index zero is the application icon. -1 is special in some Shell APIs
+    // (it counts icon groups), so do not use it to address resource ID 1.
+    if (resourceId == FileTypeIcons::ApplicationResourceId)
+        return '"' + QDir::toNativeSeparators(executable) + QStringLiteral("\",0");
+    // Negative IDs address stable RT_GROUP_ICON resources, not their order.
+    return '"' + QDir::toNativeSeparators(executable) + QStringLiteral("\",-%1").arg(resourceId);
+}
+
+bool validExecutable(const QString &executable)
+{
+    return !executable.isEmpty() && !executable.contains('"') &&
+        !executable.contains('\n') && !executable.contains('\r');
+}
+
+QString expectedIconHandler(const FileAssociations::Services &services)
+{
+    return QDir(QFileInfo(QDir::fromNativeSeparators(services.executable)).path()).filePath(
+        QString::fromLatin1(FileIconHandlerWindows::LibraryFileName));
+}
+
+QString nativeIconHandler(const FileAssociations::Services &services)
+{
+    const QString path = QDir::fromNativeSeparators(services.nativeIconHandler);
+    return validExecutable(path) && path.compare(expectedIconHandler(services), Qt::CaseInsensitive) == 0
+        ? QDir::toNativeSeparators(path) : QString();
+}
 
 QStringList unique(QStringList values)
 {
@@ -162,11 +199,35 @@ FileAssociations::Services systemServices(QSettings *registry)
 #endif
     s.registry = registry;
     s.executable = QCoreApplication::applicationFilePath();
+#ifdef Q_OS_WIN
+    SYSTEM_INFO systemInfo{};
+    GetNativeSystemInfo(&systemInfo);
+#if defined(_M_ARM64) || defined(__aarch64__)
+    constexpr WORD applicationArchitecture = PROCESSOR_ARCHITECTURE_ARM64;
+#elif defined(_M_X64) || defined(__x86_64__)
+    constexpr WORD applicationArchitecture = PROCESSOR_ARCHITECTURE_AMD64;
+#else
+    constexpr WORD applicationArchitecture = PROCESSOR_ARCHITECTURE_INTEL;
+#endif
+    const QString handler = expectedIconHandler(s);
+    if (systemInfo.wProcessorArchitecture == applicationArchitecture && QFileInfo(handler).isFile())
+        s.nativeIconHandler = handler;
+#endif
     s.dataHome = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     s.configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     s.findExecutable = [](const QString &name) { return QStandardPaths::findExecutable(name); };
-    s.openDefaults = [](const QUrl &url) { return QDesktopServices::openUrl(url); };
 #ifdef Q_OS_WIN
+    s.queryDefaultProgId = [](const QString &extension) {
+        const std::wstring suffix = ('.' + extension).toStdWString();
+        DWORD size = 0;
+        if (AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_PROGID, suffix.c_str(), nullptr, nullptr, &size) != S_FALSE
+            || size == 0 || size > 32768)
+            return QString{};
+        std::wstring buffer(size, L'\0');
+        if (FAILED(AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_PROGID, suffix.c_str(), nullptr, buffer.data(), &size)))
+            return QString{};
+        return QString::fromWCharArray(buffer.c_str());
+    };
     s.associationsChanged = [] { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr); };
 #endif
     s.run = [](const QString &program, const QStringList &arguments) {
@@ -307,7 +368,7 @@ BatchResult Backend::apply(const QStringList &extensions, bool requestDefaults)
     const auto parsed = parseExtensions(extensions.join(' '));
     if (!parsed.valid()) { result.errors << parsed.error; return result; }
     if (parsed.extensions.isEmpty()) { result.errors << QObject::tr("Select at least one file type."); return result; }
-    if (services.executable.isEmpty() || services.executable.contains('"') || services.executable.contains('\n') || services.executable.contains('\r')) {
+    if (!validExecutable(services.executable)) {
         result.errors << QObject::tr("The application executable path cannot be registered."); return result;
     }
     const QStringList combined = unique(registeredExtensions() + parsed.extensions);
@@ -317,14 +378,27 @@ BatchResult Backend::apply(const QStringList &extensions, bool requestDefaults)
         const QString command = windowsOpenCommand(services.executable, "%1");
         registry->setValue(capabilities + "ApplicationName", "8bitPad");
         registry->setValue(capabilities + "ApplicationDescription", "8bitPad text and code editor");
-        registry->setValue(capabilities + "ApplicationIcon", '"' + QDir::toNativeSeparators(services.executable) + "\",0");
+        registry->setValue(capabilities + "ApplicationIcon", iconReference(services.executable, FileTypeIcons::ApplicationResourceId));
         registry->setValue(registeredAppKey, capabilitiesValue);
         registry->setValue(classes + "Applications/8bitPad.exe/FriendlyAppName", "8bitPad");
+        registry->setValue(classes + "Applications/8bitPad.exe/DefaultIcon/.",
+            iconReference(services.executable, FileTypeIcons::forExtension({}).resourceId));
+        const QString handler = nativeIconHandler(services);
+        if (!handler.isEmpty()) {
+            registry->setValue(iconHandlerComKey + "/.", "8bitPad file icons");
+            registry->setValue(iconHandlerComKey + "/InprocServer32/.", handler);
+            registry->setValue(iconHandlerComKey + "/InprocServer32/ThreadingModel", "Apartment");
+            registry->setValue(applicationIconHandlerKey, iconHandlerClass);
+            registry->setValue(classes + "Applications/8bitPad.exe/DefaultIcon/.", "%1");
+        } else if (registry->value(applicationIconHandlerKey).toString().compare(iconHandlerClass, Qt::CaseInsensitive) == 0) {
+            registry->remove(classes + "Applications/8bitPad.exe/shellex/IconHandler");
+        }
         registry->setValue(classes + "Applications/8bitPad.exe/shell/open/command/.", command);
         for (const QString &extension : parsed.extensions) {
             const QString progId = "8bitPad." + extension;
-            registry->setValue(classes + progId + "/.", "8bitPad document");
-            registry->setValue(classes + progId + "/DefaultIcon/.", '"' + QDir::toNativeSeparators(services.executable) + "\",0");
+            const auto &type = FileTypeIcons::forExtension(extension);
+            registry->setValue(classes + progId + "/.", QStringLiteral("8bitPad %1 document").arg(type.label));
+            registry->setValue(classes + progId + "/DefaultIcon/.", iconReference(services.executable, type.resourceId));
             registry->setValue(classes + progId + "/shell/open/command/.", command);
             registry->setValue(classes + '.' + extension + "/OpenWithProgids/" + progId, QString());
             registry->setValue(classes + "Applications/8bitPad.exe/SupportedTypes/." + extension, QString());
@@ -335,11 +409,64 @@ BatchResult Backend::apply(const QStringList &extensions, bool requestDefaults)
         if (services.associationsChanged) services.associationsChanged();
         result.registeredExtensions = parsed.extensions;
         if (requestDefaults) {
-            const QUrl url(QStringLiteral("ms-settings:defaultapps?registeredAppUser=8bitPad"));
-            result.defaultsUiOpened = services.openDefaults && services.openDefaults(url);
-            if (!result.defaultsUiOpened && services.openDefaults)
-                result.defaultsUiOpened = services.openDefaults(QUrl(QStringLiteral("ms-settings:defaultapps")));
-            if (!result.defaultsUiOpened) result.errors << QObject::tr("File types were registered, but Windows Default Apps could not be opened. Open Settings > Apps > Default apps and choose 8bitPad.");
+            struct Change {
+                QString extension;
+                QVariant previous;
+                bool present;
+                bool backupCreated;
+            };
+            QList<Change> changes;
+            const QString backups = QStringLiteral("Software/8bitPad/ShellIntegration/PreviousDefaults/");
+            const auto isOurs = [](const QString &actual, const QString &extension) {
+                return actual.compare("8bitPad." + extension, Qt::CaseInsensitive) == 0
+                    || actual.compare(QStringLiteral("Applications\\8bitPad.exe"), Qt::CaseInsensitive) == 0;
+            };
+            for (const QString &extension : parsed.extensions) {
+                if (services.queryDefaultProgId && isOurs(services.queryDefaultProgId(extension), extension)) {
+                    result.defaultExtensions << extension;
+                    continue;
+                }
+                const QString key = classes + '.' + extension + "/.";
+                const bool present = registry->contains(key);
+                const QVariant previous = registry->value(key);
+                const QString backup = backups + extension + '/';
+                const bool saveBackup = !registry->contains(backup + "Present")
+                    && previous.toString().compare("8bitPad." + extension, Qt::CaseInsensitive) != 0;
+                if (saveBackup) {
+                    registry->setValue(backup + "Present", present);
+                    if (present) registry->setValue(backup + "Value", previous);
+                }
+                changes.append({extension, previous, present, saveBackup});
+                // Set the per-user file-type mapping. Protected Windows defaults
+                // can override it; never write UserChoice, its hash or its ACL.
+                registry->setValue(key, "8bitPad." + extension);
+            }
+            if (!changes.isEmpty()) {
+                if (!syncRegistry(registry, result.errors)) return result;
+                if (services.associationsChanged) services.associationsChanged();
+            }
+            bool restored = false;
+            for (const Change &change : std::as_const(changes)) {
+                const QString actual = services.queryDefaultProgId ? services.queryDefaultProgId(change.extension) : QString();
+                if (isOurs(actual, change.extension)) {
+                    result.defaultExtensions << change.extension;
+                    continue;
+                }
+                result.pendingDefaultExtensions << change.extension;
+                // Do not leave an ineffective takeover behind or report it as
+                // success. Restore only a mapping that still belongs to us.
+                const QString key = classes + '.' + change.extension + "/.";
+                if (registry->value(key).toString() == "8bitPad." + change.extension) {
+                    if (change.present) registry->setValue(key, change.previous);
+                    else registry->remove(key);
+                    restored = true;
+                }
+                if (change.backupCreated) registry->remove(backups + change.extension);
+            }
+            if (restored) {
+                syncRegistry(registry, result.errors);
+                if (services.associationsChanged) services.associationsChanged();
+            }
         }
         return result;
     }
@@ -423,21 +550,101 @@ BatchResult Backend::setContextMenuEnabled(bool enabled)
     return result;
 }
 
+BatchResult Backend::refreshOwnedIcons()
+{
+    BatchResult result;
+    if (services.platform != Platform::Windows) return result;
+    auto *registry = services.registry;
+    if (!registry || !validExecutable(services.executable)) {
+        result.errors << QObject::tr("The application icon registration could not be refreshed.");
+        return result;
+    }
+
+    // A portable or isolated copy must never redirect another copy's entries.
+    // Only the exact, existing open command establishes ownership here.
+    const QString command = QDir::fromNativeSeparators(windowsOpenCommand(services.executable, "%1"));
+    const auto owned = [&](const QString &handler) {
+        return QDir::fromNativeSeparators(registry->value(classes + handler + "/shell/open/command/.")
+            .toString().trimmed()).compare(command, Qt::CaseInsensitive) == 0;
+    };
+    bool changed = false;
+    bool hasOwnedHandler = false;
+    const auto update = [&](const QString &key, const QString &value) {
+        if (registry->value(key).toString() != value) {
+            registry->setValue(key, value);
+            changed = true;
+        }
+    };
+
+    QStringList extensions = registeredExtensions();
+    for (const auto &group : catalog()) extensions += group.extensions;
+    for (const QString &extension : unique(extensions)) {
+        const QString handler = "8bitPad." + extension;
+        if (!owned(handler)) continue;
+        hasOwnedHandler = true;
+        update(classes + handler + "/DefaultIcon/.",
+            iconReference(services.executable, FileTypeIcons::forExtension(extension).resourceId));
+        result.registeredExtensions += extension;
+    }
+    // Windows may have created only the generic Open With application entry,
+    // without our extension manifest. Give that route a real document icon too.
+    if (owned("Applications/8bitPad.exe")) {
+        hasOwnedHandler = true;
+        const QString existing = registry->value(applicationIconHandlerKey).toString();
+        if (existing.isEmpty() || existing.compare(iconHandlerClass, Qt::CaseInsensitive) == 0) {
+            const QString handler = nativeIconHandler(services);
+            if (!handler.isEmpty()) {
+                update(iconHandlerComKey + "/.", "8bitPad file icons");
+                update(iconHandlerComKey + "/InprocServer32/.", handler);
+                update(iconHandlerComKey + "/InprocServer32/ThreadingModel", "Apartment");
+                update(applicationIconHandlerKey, iconHandlerClass);
+                update(classes + "Applications/8bitPad.exe/DefaultIcon/.", "%1");
+            } else {
+                update(classes + "Applications/8bitPad.exe/DefaultIcon/.",
+                    iconReference(services.executable, FileTypeIcons::forExtension({}).resourceId));
+                if (!existing.isEmpty()) {
+                    registry->remove(classes + "Applications/8bitPad.exe/shellex/IconHandler");
+                    changed = true;
+                }
+            }
+        }
+        if (registry->value(registeredAppKey).toString() == capabilitiesValue)
+            update(capabilities + "ApplicationIcon", iconReference(services.executable, FileTypeIcons::ApplicationResourceId));
+    }
+    if (hasOwnedHandler) {
+        // Resource IDs stay stable when artwork changes; invalidate Explorer's
+        // cache once for each asset revision, not on every application launch.
+        update(iconRevisionKey, QDir::fromNativeSeparators(services.executable) + '\n' + FileTypeIcons::revision());
+    }
+    if (changed && syncRegistry(registry, result.errors) && services.associationsChanged)
+        services.associationsChanged();
+    return result;
+}
+
 BatchResult Backend::removeOwnedRegistration()
 {
     BatchResult result;
     const QStringList registered = registeredExtensions();
     if (services.platform == Platform::Windows) {
         if (!services.registry) { result.errors << QObject::tr("The user registration store is unavailable."); return result; }
+        if (QDir::fromNativeSeparators(services.registry->value(iconHandlerComKey + "/InprocServer32/.").toString())
+            .compare(expectedIconHandler(services), Qt::CaseInsensitive) == 0)
+            services.registry->remove(iconHandlerComKey);
         QStringList legacy = registered;
         for (const auto &group : catalog()) legacy << group.extensions;
         for (const QString &extension : unique(legacy)) {
             const QString progId = "8bitPad." + extension;
             services.registry->remove(classes + progId);
             services.registry->remove(classes + '.' + extension + "/OpenWithProgids/" + progId);
-            // Remove only our own legacy default value, never UserChoice/hash.
+            // Restore a previous per-user mapping only while ours still owns it.
+            // A later choice by the user or another editor always takes precedence.
             const QString key = classes + '.' + extension + "/.";
-            if (services.registry->value(key).toString() == progId) services.registry->remove(key);
+            const QString backup = "Software/8bitPad/ShellIntegration/PreviousDefaults/" + extension + '/';
+            if (services.registry->value(key).toString().compare(progId, Qt::CaseInsensitive) == 0) {
+                if (services.registry->value(backup + "Present").toBool())
+                    services.registry->setValue(key, services.registry->value(backup + "Value"));
+                else services.registry->remove(key);
+            }
         }
         services.registry->remove(classes + "Applications/8bitPad.exe");
         if (services.registry->value(registeredAppKey).toString() == capabilitiesValue) services.registry->remove(registeredAppKey);
@@ -469,6 +676,7 @@ BatchResult Backend::removeOwnedRegistration()
 
 QStringList registeredExtensions() { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).registeredExtensions(); }
 BatchResult apply(const QStringList &extensions, bool defaults) { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).apply(extensions, defaults); }
+BatchResult refreshOwnedIcons() { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).refreshOwnedIcons(); }
 BatchResult removeOwnedRegistration() { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).removeOwnedRegistration(); }
 bool contextMenuInstalled() { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).contextMenuInstalled(); }
 BatchResult setContextMenuEnabled(bool enabled) { auto registry = systemRegistry(); return Backend(systemServices(registry.get())).setContextMenuEnabled(enabled); }

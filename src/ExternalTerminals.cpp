@@ -461,6 +461,11 @@ LaunchSpec buildLaunch(const Terminal &terminal, const QString &folder)
         return spec;
     }
     spec.arguments = terminal.arguments;
+    // A manually browsed 8bitShell executable needs the same adapter as a
+    // discovered installation. Its saved profile may have a different cwd.
+    if (spec.arguments.isEmpty()
+        && QFileInfo(spec.program).completeBaseName().compare("8bitshell", Qt::CaseInsensitive) == 0)
+        spec.arguments = {"--working-directory", "{folder}"};
     if (terminal.kind == Kind::WindowsTerminal) {
         // Windows Terminal parses semicolons as command separators even in
         // quoted arguments. Keep the untrusted directory out of that grammar.

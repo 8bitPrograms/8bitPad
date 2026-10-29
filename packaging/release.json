@@ -39,5 +39,9 @@
     "armv7": "2.36"
   },
   "publisher": "8bitPrograms",
-  "startMenuFolder": "8bitPrograms"
+  "startMenuFolder": "8bitPrograms",
+  "commandAliases": [
+    "8bitpad",
+    "8p"
+  ]
 }

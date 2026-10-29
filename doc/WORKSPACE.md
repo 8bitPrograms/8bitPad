@@ -19,12 +19,24 @@ or **Select all types**. The all-types button includes entries hidden by a filte
 the entire selection. Multiple custom extensions can be added together. No
 association changes happen until the apply/register button is pressed.
 
-On Windows, one batch registers the selected extensions in Open With and the
-application's capabilities. The optional **Open Windows Default apps** checkbox
-opens the system settings once after registration. Windows controls the final
-default-app choices; 8bitPad does not change protected UserChoice data or claim
-that registration alone changed the current defaults. Keep a portable installation
-in its final folder before registering it, since the executable path is recorded.
+On Windows, **Associate selected file types** registers one selected batch in
+Open With and the application's capabilities. **Make 8bitPad the default** is
+enabled initially and applies per-user file-type mappings directly. The effective
+handler is checked through the Windows Shell API before a row is marked **Default**.
+No Settings window or default-app picker is opened automatically.
+
+Windows can protect an existing default choice. Those rows show **Needs Windows
+confirmation** inside Pad, rather than reporting a successful default change.
+An ineffective mapping is restored immediately; protected UserChoice data,
+hashes and permissions are never changed. Administrator privileges do not provide
+a supported override for those protected choices. Registration alone is distinct
+from becoming the default. Clearing the default checkbox registers Open With
+support without changing default mappings.
+
+Previous per-user mappings are retained for cleanup and restored only while
+8bitPad still owns the mapping. A later change by another application is retained.
+Keep a portable installation in its final folder before registering it, since
+the executable path is recorded.
 
 On Linux, registration uses the user's XDG data location. The optional default
 operation applies once per distinct MIME content type and reports failures.
@@ -49,6 +61,37 @@ supported. Directory moves update open descendant documents while retaining
 unsaved text and undo history. Copies run in the background into a temporary
 staging directory, can be cancelled, and publish only a completed copy. Symbolic
 links/junctions are not followed for mutations. Trash requires confirmation.
+
+## Windows file icons
+
+Files associated with 8bitPad use the cobalt, pixel-style Pad mark with a
+type-specific badge. The catalog includes 42 icon families (253 suffixes),
+including separate SQL and PL/SQL, Python, JavaScript, TypeScript, JSON, YAML,
+Markdown, logs, PowerShell and shell scripts. Unknown custom suffixes use TXT.
+All icons contain native 16/20/24/32/48/64/128/256-pixel images and transparency.
+
+On the first normal launch after an update, Pad refreshes its existing icon
+registrations and tells Explorer to refresh its cache. Existing default-app
+choices are retained. Registration through File Associations uses embedded
+EXE resources; the shared Windows Open With application handler selects the
+same resources through a bundled native DLL that inspects only the suffix,
+never document contents. It needs no Qt or separate runtime installation.
+If the DLL cannot run in native Explorer (for example, an x86 app on x64
+Windows), the generic Open With route retains a static Pad document icon.
+Per-type registrations still use their own static icons.
+
+Portable/profile and offscreen test launches do not automatically modify the
+system registrations. Explicit File Associations actions still work from a
+portable copy. Both Windows MSI build paths own the native COM server
+registration for repair and removal; portable copies register it when the
+user applies associations. The artwork and mappings are reproduced with
+`python scripts/generate-file-icons.py`; `--check` validates the checked-in
+outputs. Resource IDs are persistent and must not be renumbered.
+
+The native handler uses one per-user COM identity. If a portable copy takes over
+associations after MSI installation, uninstalling that MSI can remove the shared
+COM registration. Reapply associations from the remaining portable copy to
+restore its generic Open With icons; its per-type static icons are unaffected.
 
 ## Open Shell
 

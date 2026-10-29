@@ -39,7 +39,7 @@ FileAssociationsDialog::Callbacks callbacksFor(State &state)
         state.requestDefaults = defaults;
         FileAssociations::BatchResult result;
         result.registeredExtensions = selected;
-        result.defaultsUiOpened = defaults;
+        if (defaults) result.defaultExtensions = selected;
         return result;
     };
     callbacks.contextMenuInstalled = [&state] { ++state.contextReads; return state.contextInstalled; };
@@ -83,6 +83,8 @@ private slots:
     void customInputAddsMultipleAndDeduplicates();
     void invalidCustomInputIsAtomic();
     void applySendsOneExactBatch();
+    void directAssociationResultsAreShownInline_data();
+    void directAssociationResultsAreShownInline();
     void partialFailureKeepsSuccessfulRegistrationVisible();
     void contextMenuControlsAreIndependent();
     void themeRefreshPreservesSelection();
@@ -188,6 +190,58 @@ void FileAssociationsDialogTest::applySendsOneExactBatch()
     click(dialog, "associationApply");
     QCOMPARE(state.applies, 2);
     QVERIFY(state.requestDefaults);
+}
+
+void FileAssociationsDialogTest::directAssociationResultsAreShownInline_data()
+{
+    QTest::addColumn<int>("pendingCount");
+    QTest::newRow("single-pending-type") << 1;
+    QTest::newRow("six-pending-types") << 6;
+    QTest::newRow("long-pending-list") << 9;
+}
+
+void FileAssociationsDialogTest::directAssociationResultsAreShownInline()
+{
+    QFETCH(int, pendingCount);
+    State state;
+    QStringList pending;
+    for (int i = 0; i < pendingCount; ++i)
+        pending << QStringLiteral("custom%1").arg(i);
+    auto callbacks = callbacksFor(state);
+    callbacks.catalog = [&] {
+        return QList<FileAssociations::Group>{{"text", "Text", QStringList{"txt"} + pending}};
+    };
+    callbacks.apply = [&](const QStringList &selected, bool defaults) {
+        ++state.applies;
+        state.requestDefaults = defaults;
+        FileAssociations::BatchResult result;
+        result.registeredExtensions = selected;
+        result.defaultExtensions = {"txt"};
+        result.pendingDefaultExtensions = pending;
+        return result;
+    };
+    FileAssociationsDialog dialog(nullptr, callbacks);
+    auto *defaults = dialog.findChild<QCheckBox *>(QStringLiteral("associationRequestDefaults"));
+    QVERIFY(defaults->isChecked());
+    QVERIFY(!defaults->text().contains(QStringLiteral("Open Windows")));
+    extensionItem(dialog, QStringLiteral("txt"))->setCheckState(0, Qt::Checked);
+    for (const QString &extension : pending)
+        extensionItem(dialog, extension)->setCheckState(0, Qt::Checked);
+    click(dialog, "associationApply");
+    QCOMPARE(state.applies, 1);
+    QVERIFY(state.requestDefaults);
+    QCOMPARE(extensionItem(dialog, QStringLiteral("txt"))->text(1), QStringLiteral("Default"));
+    for (const QString &extension : pending)
+        QCOMPARE(extensionItem(dialog, extension)->text(1), QStringLiteral("Needs Windows confirmation"));
+#ifdef Q_OS_WIN
+    const QString message = dialog.findChild<QLabel *>(QStringLiteral("associationStatus"))->text();
+    QVERIFY(message.contains(QStringLiteral("Default application set for 1 file types.")));
+    QVERIFY(message.contains(QStringLiteral(".custom0")));
+    if (pendingCount > 6) {
+        QVERIFY(message.contains(QStringLiteral("3 more")));
+        QVERIFY(!message.contains(QStringLiteral(".custom6")));
+    }
+#endif
 }
 
 void FileAssociationsDialogTest::partialFailureKeepsSuccessfulRegistrationVisible()

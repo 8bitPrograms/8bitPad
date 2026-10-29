@@ -1,10 +1,16 @@
 # 8bitPad
-**Current version: 1.0.0.** Pixel Core branding: silver plain-text icon.
+**Current version: 1.0.0.** Pixel Core branding: cobalt blue pixel tile, stepped corners and charcoal text bars, matching 8bitShell.
+
+Local build, test, portable launch and troubleshooting instructions: [doc/Building.md](doc/Building.md).
+
+Run `8p .` or `8p some.txt` from your terminal after Windows installation. Optional version checks and updates are in **Help > Updates**; automatic installation starts disabled. See [commands and updates](doc/Updates.md).
 
 Cross-platform release builds, bundled runtimes, curl installation, native packages and repository maintenance are documented in [doc/RELEASING.md](doc/RELEASING.md). Hosted platform checks remain pending; see [doc/RELEASE-VALIDATION.md](doc/RELEASE-VALIDATION.md).
 
 
-A native desktop text editor with a familiar Notepad++ workflow, Vi-style editing and 26 open-source color themes. Built in C++20 with Qt 6 and Scintilla/Lexilla; no browser runtime.
+A native desktop text editor with a familiar Notepad++ workflow, Vi-style editing and 29 open-source color themes. Built in C++20 with Qt 6 and Scintilla/Lexilla; no browser runtime.
+
+Click the version seven times in Preferences to reveal Blueberi, Raspberi and the Cyberpunk-inspired Silverhand, V and K themes. Unlocking is saved per profile and keeps the current theme. See [theme unlocking](doc/Updates.md#version-and-bonus-themes).
 
 8bitPad is a GPL-3.0-or-later fork of **Notepad Next v0.15**, with its original notices retained. It is independent of the Notepad++ and Notepad Next projects. Feature coverage and remaining compatibility differences are documented in [doc/FEATURES.md](doc/FEATURES.md).
 
@@ -14,7 +20,7 @@ A native desktop text editor with a familiar Notepad++ workflow, Vi-style editin
 
 **Linux x86_64:** use the normal runtime `.tar.gz` package and its `8bitPad` launcher, or the curl installer for a per-user installation and desktop shortcut. The release workflow targets an Ubuntu 22.04 build baseline; a locally built Fedora 44 package requires a compatible newer system.
 
-Windows, Linux and macOS curl instructions, installation paths and options are in [doc/INSTALLATION.md](doc/INSTALLATION.md). The temporary repository name is `OWNER/8bitpad`; replace it with the real repository after the first release is published. Installer preparation does not make those example URLs live.
+Windows, Linux and macOS curl instructions, installation paths and options are in [doc/INSTALLATION.md](doc/INSTALLATION.md). Releases are configured for `8bitPrograms/8bitPad`; download URLs become usable after the matching release assets are published.
 
 ## Everyday commands
 
