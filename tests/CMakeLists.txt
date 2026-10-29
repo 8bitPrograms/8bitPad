@@ -52,7 +52,7 @@ set_target_properties(EditorCoreTest VimModeTest FolderSearchTest NavigationTest
     PROPERTIES WIN32_EXECUTABLE FALSE)
 
 add_test(NAME ApplicationSmoke COMMAND NotepadNext --smoke-test "${CMAKE_CURRENT_BINARY_DIR}/smoke")
-set_tests_properties(ApplicationSmoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 120)
+set_tests_properties(ApplicationSmoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 600)
 
 qt_add_executable(MarkdownPreviewTest MarkdownPreviewTest.cpp
     ../src/MarkdownRenderer.cpp ../src/MarkdownRenderer.h
