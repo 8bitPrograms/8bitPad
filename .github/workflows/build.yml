@@ -237,7 +237,17 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-linux-${{ matrix.arch }}
-          path: dist/release/*
+          # Release asset types only, as in the native job; finalize rejects anything else.
+          path: |
+            dist/release/*.zip
+            dist/release/*.tar.gz
+            dist/release/*.msi
+            dist/release/*.exe
+            dist/release/*.dmg
+            dist/release/*.deb
+            dist/release/*.rpm
+            dist/release/*.pkg.tar.zst
+            dist/release/manifest-*.json
           if-no-files-found: error
   legacy-windows:
     needs: plan
@@ -256,7 +266,17 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-windows-x86
-          path: dist/release/*
+          # Release asset types only, as in the native job; finalize rejects anything else.
+          path: |
+            dist/release/*.zip
+            dist/release/*.tar.gz
+            dist/release/*.msi
+            dist/release/*.exe
+            dist/release/*.dmg
+            dist/release/*.deb
+            dist/release/*.rpm
+            dist/release/*.pkg.tar.zst
+            dist/release/manifest-*.json
           if-no-files-found: error
   draft-release:
     needs: [plan, native, legacy-linux, legacy-windows]
@@ -287,8 +307,9 @@ jobs:
           gh release create "v$version" dist/release/* --repo "$RELEASE_REPOSITORY" --draft --verify-tag --title "$version" --notes-file packaging/RELEASE-NOTES.md
   finalize-dry-run:
     # Proves the release inventory on any branch without a tag or a write token.
-    needs: native
-    if: github.event_name == 'workflow_dispatch' && inputs.finalize_dry_run && inputs.packages
+    # Waits for the legacy jobs too, so their candidates go through the same finalize checks.
+    needs: [native, legacy-linux, legacy-windows]
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.finalize_dry_run && inputs.packages && needs.native.result == 'success' && (needs.legacy-linux.result == 'success' || needs.legacy-linux.result == 'skipped') && (needs.legacy-windows.result == 'success' || needs.legacy-windows.result == 'skipped')
     runs-on: ubuntu-22.04
     permissions: { contents: read }
     steps:
