@@ -203,14 +203,24 @@ OperationResult FileOperations::rename(const QString &source, const QString &nam
     if (!validName(name, &reason))
         return failed(reason);
     const QString target = QDir(QFileInfo(source).absolutePath()).filePath(name);
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     const QString from = absolute(source);
     const QString to = absolute(target);
-    if (from != to && samePath(from, to)) {
+    const bool caseOnly = from.compare(to, Qt::CaseInsensitive) == 0 && from != to;
+    bool sameFile = caseOnly;
+#ifdef Q_OS_MACOS
+    // A case-sensitive volume can store both names. Only treat this as a
+    // case-only rename when both paths are the same existing file.
+    const QString fromCanonical = QFileInfo(from).canonicalFilePath();
+    sameFile = caseOnly && !fromCanonical.isEmpty()
+        && QFileInfo(to).canonicalFilePath().compare(fromCanonical, Qt::CaseInsensitive) == 0;
+#endif
+    if (sameFile) {
         reason = validateExisting(source, false);
         if (!reason.isEmpty()) return failed(reason);
-        // A direct case-only rename can be rejected by Windows/Qt as an
-        // existing destination. Reserve a unique sibling container first.
+        // A direct case-only rename is rejected on Windows and on
+        // case-insensitive macOS volumes because the destination "exists".
+        // Reserve a unique sibling container first.
         QTemporaryDir staging(QDir(QFileInfo(from).absolutePath()).filePath(".8bitpad-rename-XXXXXX"));
         if (!staging.isValid())
             return failed(QObject::tr("Could not prepare the rename. The source was kept."));

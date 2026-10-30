@@ -78,7 +78,7 @@ private slots:
     void invalidPathsAndBatchFilesAreRejected();
     void detachedHelperReceivesExactArgumentsAndWorkingDirectory();
     void discoveryDoesNotLaunchAndFiltersInjectedRuntime();
-#ifndef Q_OS_WIN
+#ifdef Q_OS_LINUX
     void linuxDesktopEntriesRemainStructured();
 #endif
 };
@@ -254,10 +254,20 @@ void ExternalTerminalsTest::detachedHelperReceivesExactArgumentsAndWorkingDirect
     QFile file(report);
     QVERIFY(file.open(QIODevice::ReadOnly));
     const auto object = QJsonDocument::fromJson(file.readAll()).object();
-    QCOMPARE(object.value("cwd").toString(), folder);
+    // APFS stores filenames in decomposed form, so the launched directory can
+    // differ from the composed string used to create it. The other arguments
+    // must still be exact, including spaces, quotes, and unexpanded substitutions.
+    const auto canonicalPath = [](const QString &path) {
+        return path.normalized(QString::NormalizationForm_C);
+    };
+    QCOMPARE(canonicalPath(object.value("cwd").toString()), canonicalPath(folder));
     QStringList expected = literal;
     expected[0] = QDir::toNativeSeparators(folder);
-    QCOMPARE(object.value("arguments").toArray(), QJsonArray::fromStringList(expected));
+    const QJsonArray actualArguments = object.value("arguments").toArray();
+    QCOMPARE(actualArguments.size(), expected.size());
+    QCOMPARE(canonicalPath(actualArguments.at(0).toString()), canonicalPath(expected.at(0)));
+    for (int index = 1; index < expected.size(); ++index)
+        QCOMPARE(actualArguments.at(index).toString(), expected.at(index));
     QCOMPARE(object.value("marker").toString(), QString("inherited value"));
     QCOMPARE(object.value("plugins").toString(), unrelatedPlugins);
 }
@@ -302,7 +312,7 @@ void ExternalTerminalsTest::discoveryDoesNotLaunchAndFiltersInjectedRuntime()
 #endif
 }
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_LINUX
 void ExternalTerminalsTest::linuxDesktopEntriesRemainStructured()
 {
     QTemporaryDir temp;
